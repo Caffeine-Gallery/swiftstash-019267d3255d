@@ -9,6 +9,7 @@ export interface FileInfo {
   'chunkCount' : bigint,
 }
 export interface _SERVICE {
+  'debugFileChunks' : ActorMethod<[string], string>,
   'deleteFile' : ActorMethod<[string], undefined>,
   'getFileChunk' : ActorMethod<[string, bigint], [] | [Uint8Array | number[]]>,
   'getFileInfo' : ActorMethod<[string], [] | [FileInfo]>,

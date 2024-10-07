@@ -158,6 +158,21 @@ actor {
     }
   };
 
+  public query func debugFileChunks(name: Text) : async Text {
+    switch (fileChunks.get(name)) {
+      case (null) { "File not found: " # name };
+      case (?chunks) {
+        var debugInfo = "File: " # name # "\n";
+        debugInfo #= "Total chunks: " # Nat.toText(chunks.size()) # "\n";
+        for (i in Iter.range(0, chunks.size() - 1)) {
+          let chunk = chunks.get(i);
+          debugInfo #= "Chunk " # Nat.toText(i) # " size: " # Nat.toText(chunk.data.size()) # " bytes\n";
+        };
+        debugInfo
+      };
+    }
+  };
+
   system func preupgrade() {
     fileInfoEntries := Iter.toArray(fileInfos.entries());
     

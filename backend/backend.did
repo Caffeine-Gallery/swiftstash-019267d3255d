@@ -6,6 +6,7 @@ type FileInfo =
    size: nat64;
  };
 service : {
+  debugFileChunks: (text) -> (text) query;
   deleteFile: (text) -> ();
   getFileChunk: (text, nat64) -> (opt vec nat8) query;
   getFileInfo: (text) -> (opt FileInfo) query;

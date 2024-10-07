@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
   const MAX_RETRY_ATTEMPTS = 3;
+  const CHUNK_DOWNLOAD_TIMEOUT = 10000; // 10 seconds
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -123,8 +124,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         downloadButton.textContent = 'Download';
         downloadButton.onclick = () => downloadFile(fileName);
         
+        const debugButton = document.createElement('button');
+        debugButton.textContent = 'Debug';
+        debugButton.onclick = async () => {
+          try {
+            const debugInfo = await backend.debugFileChunks(fileName);
+            console.log('Debug info for', fileName, ':', debugInfo);
+            alert('Debug info logged to console');
+          } catch (error) {
+            console.error('Debug failed:', error);
+            alert('Debug failed: ' + error.message);
+          }
+        };
+        
         li.appendChild(deleteButton);
         li.appendChild(downloadButton);
+        li.appendChild(debugButton);
         fileList.appendChild(li);
       }
     } catch (error) {
@@ -158,9 +173,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       for (let i = 0; i < totalChunks; i++) {
         let chunkData = null;
         for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
-          chunkData = await backend.getFileChunk(fileName, BigInt(i));
-          if (chunkData) break;
-          console.warn(`Retry ${attempt + 1} for chunk ${i}`);
+          try {
+            chunkData = await Promise.race([
+              backend.getFileChunk(fileName, BigInt(i)),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Chunk download timeout')), CHUNK_DOWNLOAD_TIMEOUT))
+            ]);
+            if (chunkData) break;
+          } catch (error) {
+            console.warn(`Attempt ${attempt + 1} failed for chunk ${i}:`, error.message);
+          }
         }
         if (!chunkData) {
           console.error(`Failed to download chunk ${i} after ${MAX_RETRY_ATTEMPTS} attempts`);
