@@ -28,6 +28,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    if (file.size === 0) {
+      uploadStatus.textContent = 'Error: Cannot upload empty file';
+      uploadStatus.classList.add('error');
+      return;
+    }
+
     try {
       progressBarContainer.style.display = 'block';
       progressBar.style.width = '0%';
@@ -39,6 +45,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       for (let i = 0; i < totalChunks; i++) {
         const chunk = chunks[i];
+        if (chunk.length === 0) {
+          throw new Error('Empty chunk detected during upload');
+        }
         const serializedChunk = IDL.encode([IDL.Vec(IDL.Nat8)], [Array.from(chunk)]);
         await backend.uploadFileChunk(file.name, file.type, file.size, i, totalChunks, serializedChunk);
         updateProgressBar((i + 1) / totalChunks * 100);
@@ -96,6 +105,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const fileInfo = await backend.getFileInfo(fileName);
       console.log('File info received:', fileInfo);
       if (fileInfo) {
+        if (fileInfo.size === 0) {
+          throw new Error('File size is 0 bytes');
+        }
         const fileData = await downloadFileInChunks(fileInfo);
         if (fileData) {
           displayFileContent(fileInfo, fileData);
@@ -133,6 +145,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return newArray;
       }, new Uint8Array());
 
+      if (concatenatedChunks.length === 0) {
+        throw new Error('Downloaded file content is empty');
+      }
+
       console.log(`Assembled file size: ${concatenatedChunks.length} bytes`);
       return new Blob([concatenatedChunks], { type: fileInfo.contentType || 'application/octet-stream' });
     } catch (error) {
@@ -144,8 +160,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function retryDownloadChunk(fileName, chunkIndex, retries = 0) {
     try {
       const chunk = await backend.getFileChunk(fileName, chunkIndex);
-      if (chunk) {
+      if (chunk && chunk.length > 0) {
         return new Uint8Array(chunk);
+      } else {
+        throw new Error('Received empty chunk from backend');
       }
     } catch (error) {
       console.error(`Error downloading chunk ${chunkIndex}:`, error);

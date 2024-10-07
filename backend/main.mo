@@ -10,6 +10,7 @@ import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
 import Option "mo:base/Option";
 import Text "mo:base/Text";
+import Error "mo:base/Error";
 
 actor {
   type FileInfo = {
@@ -30,10 +31,17 @@ actor {
   var fileChunks = HashMap.HashMap<Text, [FileChunk]>(0, Text.equal, Text.hash);
 
   public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat, chunkIndex: Nat, totalChunks: Nat, data: [Nat8]) : async () {
+    if (data.size() == 0) {
+      throw Error.reject("Cannot upload empty chunk");
+    };
+
     let chunk : FileChunk = { data = Blob.fromArray(data) };
     
     switch (fileChunks.get(name)) {
       case (null) {
+        if (totalSize == 0) {
+          throw Error.reject("Cannot upload file with 0 bytes");
+        };
         let newChunks = Array.init<FileChunk>(totalChunks, chunk);
         newChunks[chunkIndex] := chunk;
         fileChunks.put(name, Array.freeze(newChunks));
@@ -52,6 +60,9 @@ actor {
   public query func getFileInfo(name: Text) : async ?FileInfo {
     switch (fileInfos.get(name)) {
       case (?info) {
+        if (info.size == 0) {
+          Debug.print("Warning: File size is 0 for " # name);
+        };
         ?{
           name = info.name;
           contentType = Option.get(Text.stripStart(info.contentType, #text ""), "application/octet-stream");
@@ -75,6 +86,9 @@ actor {
       case (?chunks) {
         if (chunkIndex < chunks.size()) {
           let chunkData = chunks[chunkIndex].data;
+          if (chunkData.size() == 0) {
+            Debug.print("Warning: Empty chunk detected for file " # name # " at index " # Nat.toText(chunkIndex));
+          };
           Debug.print("Returning chunk " # Nat.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkData.size()));
           ?chunkData
         } else {
