@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const li = document.createElement('li');
         li.textContent = fileName;
         const viewButton = document.createElement('button');
-        viewButton.textContent = 'View';
+        viewButton.textContent = 'View/Download';
         viewButton.addEventListener('click', () => viewFile(fileName));
         li.appendChild(viewButton);
         fileList.appendChild(li);
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       updateProgressBar((i + 1) / totalChunks * 100);
     }
-    return new File(chunks, fileName, { type: contentType || 'application/octet-stream' });
+    return new Blob(chunks, { type: contentType || 'application/octet-stream' });
   }
 
   function updateProgressBar(progress) {
@@ -162,16 +162,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       link.href = url;
       link.download = fileName;
       link.textContent = `Download ${fileName}`;
-      link.onclick = (e) => {
-        e.preventDefault();
-        const clickEvent = new MouseEvent('click', {
-          view: window,
-          bubbles: true,
-          cancelable: false
-        });
-        link.dispatchEvent(clickEvent);
-      };
-      displayInModal(link);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      console.log('Download initiated for', fileName);
     }
   }
 
