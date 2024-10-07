@@ -3,6 +3,7 @@ type FileInfo =
    chunkCount: nat;
    contentType: text;
    name: text;
+   size: nat;
  };
 service : {
   getFileChunk: (text, nat) -> (opt blob) query;

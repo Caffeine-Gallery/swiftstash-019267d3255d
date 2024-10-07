@@ -2,6 +2,7 @@ export const idlFactory = ({ IDL }) => {
   const FileInfo = IDL.Record({
     'contentType' : IDL.Text,
     'name' : IDL.Text,
+    'size' : IDL.Nat,
     'chunkCount' : IDL.Nat,
   });
   return IDL.Service({

@@ -171,10 +171,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function displayFileContent(fileName, contentType, fileData) {
-    console.log('Displaying file content. Content type:', contentType, 'File size:', fileData.size);
+    const actualContentType = fileData.type || contentType || 'application/octet-stream';
+    const fileSize = fileData.size;
+    console.log('Displaying file content. Content type:', actualContentType, 'File size:', fileSize);
     const url = URL.createObjectURL(fileData);
 
-    if (contentType && contentType.startsWith('image/')) {
+    if (actualContentType.startsWith('image/')) {
       const img = document.createElement('img');
       img.src = url;
       img.onerror = (e) => {
@@ -182,14 +184,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('Failed to load image. Please check the console for more details.');
       };
       img.onload = () => console.log('Image loaded successfully');
-      displayInModal(img);
-    } else if (contentType && contentType.startsWith('text/')) {
+      displayInModal(img, fileName, actualContentType, fileSize);
+    } else if (actualContentType.startsWith('text/')) {
       fetch(url)
         .then(response => response.text())
         .then(text => {
           const pre = document.createElement('pre');
           pre.textContent = text;
-          displayInModal(pre);
+          displayInModal(pre, fileName, actualContentType, fileSize);
         })
         .catch(error => {
           console.error('Failed to load text file:', error);
@@ -199,17 +201,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
-      link.textContent = `Download ${fileName}`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      console.log('Download initiated for', fileName);
+      link.textContent = `Download ${fileName} (${formatFileSize(fileSize)})`;
+      displayInModal(link, fileName, actualContentType, fileSize);
     }
   }
 
-  function displayInModal(content) {
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+    else return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  function displayInModal(content, fileName, contentType, fileSize) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     const modalContent = document.createElement('div');
@@ -219,7 +222,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeBtn.textContent = '×';
     closeBtn.onclick = () => document.body.removeChild(modal);
 
+    const fileInfo = document.createElement('p');
+    fileInfo.textContent = `File: ${fileName} | Type: ${contentType} | Size: ${formatFileSize(fileSize)}`;
+    
     modalContent.appendChild(closeBtn);
+    modalContent.appendChild(fileInfo);
     modalContent.appendChild(content);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);

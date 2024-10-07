@@ -16,6 +16,7 @@ actor {
     name: Text;
     contentType: Text;
     chunkCount: Nat;
+    size: Nat;
   };
 
   type FileChunk = {
@@ -36,7 +37,7 @@ actor {
         let newChunks = Array.init<FileChunk>(totalChunks, chunk);
         newChunks[chunkIndex] := chunk;
         fileChunks.put(name, Array.freeze(newChunks));
-        fileInfos.put(name, { name = name; contentType = contentType; chunkCount = totalChunks });
+        fileInfos.put(name, { name = name; contentType = contentType; chunkCount = totalChunks; size = 0 });
       };
       case (?existingChunks) {
         let updatedChunks = Array.thaw<FileChunk>(existingChunks);
@@ -44,6 +45,19 @@ actor {
         fileChunks.put(name, Array.freeze(updatedChunks));
       };
     };
+
+    // Update file size
+    switch (fileInfos.get(name)) {
+      case (?info) {
+        let updatedSize = info.size + chunk.data.size();
+        fileInfos.put(name, { name = info.name; contentType = info.contentType; chunkCount = info.chunkCount; size = updatedSize });
+      };
+      case (null) {
+        // This case should not happen, but handle it just in case
+        Debug.print("Warning: File info not found when updating size for " # name);
+      };
+    };
+
     Debug.print("Uploaded chunk " # Nat.toText(chunkIndex) # " of " # Nat.toText(totalChunks) # " for file " # name);
   };
 
@@ -54,6 +68,7 @@ actor {
           name = info.name;
           contentType = Option.get(Text.stripStart(info.contentType, #text ""), "application/octet-stream");
           chunkCount = info.chunkCount;
+          size = info.size;
         }
       };
       case (null) { 

@@ -5,6 +5,7 @@ import type { IDL } from '@dfinity/candid';
 export interface FileInfo {
   'contentType' : string,
   'name' : string,
+  'size' : bigint,
   'chunkCount' : bigint,
 }
 export interface _SERVICE {
