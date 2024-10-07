@@ -2,151 +2,226 @@ import { backend } from 'declarations/backend';
 import { AuthClient } from "@dfinity/auth-client";
 import { Principal } from "@dfinity/principal";
 
-const FileVault = (function() {
-    let authClient;
-    let userPrincipal;
-    let db;
+// Custom useState hook
+function useState(initialState) {
+    let state = initialState;
+    const listeners = new Set();
 
-    const DOM = {
-        fileInput: document.getElementById('fileInput'),
-        uploadButton: document.getElementById('uploadButton'),
-        fileList: document.getElementById('fileList'),
-        status: document.getElementById('status'),
-        progressBar: document.getElementById('progressBar'),
-        progressBarContainer: document.getElementById('progressBarContainer'),
-        loginButton: document.getElementById('loginButton'),
-        logoutButton: document.getElementById('logoutButton'),
-        mainContent: document.getElementById('mainContent')
+    const setState = (newState) => {
+        state = typeof newState === 'function' ? newState(state) : newState;
+        listeners.forEach(listener => listener(state));
     };
 
-    async function init() {
-        await initIndexedDB();
-        await initAuth();
-        bindEvents();
-    }
+    const getState = () => state;
 
-    async function initAuth() {
-        authClient = await AuthClient.create();
-        if (await authClient.isAuthenticated()) {
-            userPrincipal = await authClient.getIdentity().getPrincipal();
-            showAuthenticatedUI();
-        }
-    }
+    const subscribe = (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    };
 
-    function bindEvents() {
-        DOM.loginButton.onclick = login;
-        DOM.logoutButton.onclick = logout;
-        DOM.uploadButton.addEventListener('click', handleUpload);
-        DOM.fileInput.addEventListener('change', updateFileInputLabel);
-    }
+    return [getState, setState, subscribe];
+}
 
-    async function login() {
-        await authClient.login({
-            identityProvider: "https://identity.ic0.app/#authorize",
-            onSuccess: () => {
-                userPrincipal = authClient.getIdentity().getPrincipal();
-                showAuthenticatedUI();
-            },
-        });
-    }
+// Custom useEffect hook
+function useEffect(effect, dependencies) {
+    let cleanup;
+    const runEffect = () => {
+        if (cleanup) cleanup();
+        cleanup = effect();
+    };
 
-    async function logout() {
-        await authClient.logout();
-        showUnauthenticatedUI();
+    if (!dependencies) {
+        runEffect();
+    } else {
+        let oldDeps = [];
+        return (newDeps) => {
+            if (newDeps.some((dep, i) => dep !== oldDeps[i])) {
+                runEffect();
+                oldDeps = newDeps;
+            }
+        };
     }
+}
 
-    function showAuthenticatedUI() {
-        DOM.loginButton.style.display = 'none';
-        DOM.logoutButton.style.display = 'inline-block';
-        DOM.mainContent.style.display = 'block';
-        DOM.mainContent.classList.add('fade-in');
-        updateFileList();
-    }
+// IndexedDB operations
+let db;
 
-    function showUnauthenticatedUI() {
-        DOM.loginButton.style.display = 'inline-block';
-        DOM.logoutButton.style.display = 'none';
-        DOM.mainContent.style.display = 'none';
-        userPrincipal = null;
-    }
+async function initIndexedDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('FileStorage', 1);
+        request.onerror = event => reject("IndexedDB error: " + event.target.error);
+        request.onsuccess = event => {
+            db = event.target.result;
+            resolve();
+        };
+        request.onupgradeneeded = event => {
+            db = event.target.result;
+            db.createObjectStore("files", { keyPath: "name" });
+        };
+    });
+}
 
-    async function handleUpload() {
-        if (!DOM.fileInput.files.length) {
+async function saveFileLocally(name, type, content) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(["files"], "readwrite");
+        const store = transaction.objectStore("files");
+        const request = store.put({ name, type, content });
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+    });
+}
+
+async function getFileLocally(name) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(["files"], "readonly");
+        const store = transaction.objectStore("files");
+        const request = store.get(name);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+    });
+}
+
+async function deleteFileLocally(name) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(["files"], "readwrite");
+        const store = transaction.objectStore("files");
+        const request = store.delete(name);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+    });
+}
+
+async function getAllFiles() {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(["files"], "readonly");
+        const store = transaction.objectStore("files");
+        const request = store.getAll();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+    });
+}
+
+// Components
+function FileUpload({ onUpload, updateStatus }) {
+    const [getFile, setFile] = useState(null);
+    const [getProgress, setProgress] = useState(0);
+
+    const handleFileChange = (event) => {
+        setFile(event.target.files[0]);
+    };
+
+    const handleUpload = async () => {
+        const file = getFile();
+        if (!file) {
             updateStatus('Please select a file', 'error');
             return;
         }
 
-        const file = DOM.fileInput.files[0];
         if (file.size <= 1) {
             updateStatus('Error: File must be larger than 1 byte', 'error');
             return;
         }
 
         try {
-            DOM.progressBarContainer.style.display = 'block';
+            setProgress(0);
             const content = await readFileAsArrayBuffer(file);
             await saveFileLocally(file.name, file.type, content);
             updateStatus('File uploaded successfully', 'success');
-            await updateFileList();
+            onUpload();
         } catch (error) {
             updateStatus('Upload failed: ' + error.message, 'error');
         } finally {
-            DOM.progressBarContainer.style.display = 'none';
-            DOM.progressBar.style.width = '0%';
+            setProgress(0);
         }
-    }
+    };
 
-    function updateFileInputLabel() {
-        const label = document.querySelector('.file-input-label');
-        label.textContent = DOM.fileInput.files.length > 0 ? DOM.fileInput.files[0].name : 'Choose a file';
-    }
+    return `
+        <section class="upload-section">
+            <h2>Upload File</h2>
+            <div class="file-upload-container">
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" class="file-input" onchange="handleFileChange(event)">
+                    <label for="fileInput" class="file-input-label">${getFile() ? getFile().name : 'Choose a file'}</label>
+                </div>
+                <button class="btn" onclick="handleUpload()">Upload</button>
+            </div>
+            ${getProgress() > 0 ? `
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${getProgress()}%"></div>
+                </div>
+            ` : ''}
+        </section>
+    `;
+}
 
-    function updateStatus(message, type) {
-        DOM.status.textContent = message;
-        DOM.status.className = `status ${type} fade-in`;
-        setTimeout(() => {
-            DOM.status.style.opacity = '0';
-        }, 3000);
-    }
+function FileList({ files, onDownload, onDelete }) {
+    return `
+        <section class="file-list-section">
+            <h2>File List</h2>
+            <ul class="file-list">
+                ${files.map(file => `
+                    <li>
+                        ${file.name}
+                        <div class="button-container">
+                            <button class="btn btn-small" onclick="onDownload('${file.name}')">Download</button>
+                            <button class="btn btn-small" onclick="onDelete('${file.name}')">Delete</button>
+                        </div>
+                    </li>
+                `).join('')}
+            </ul>
+        </section>
+    `;
+}
 
-    async function updateFileList() {
+function StatusMessage({ message, type }) {
+    return message ? `
+        <footer>
+            <p class="status ${type}">${message}</p>
+        </footer>
+    ` : '';
+}
+
+function App() {
+    const [getIsAuthenticated, setIsAuthenticated] = useState(false);
+    const [getFiles, setFiles] = useState([]);
+    const [getStatus, setStatus] = useState({ message: '', type: '' });
+    let authClient;
+
+    const initAuth = async () => {
+        authClient = await AuthClient.create();
+        const isAuthenticated = await authClient.isAuthenticated();
+        setIsAuthenticated(isAuthenticated);
+        if (isAuthenticated) {
+            updateFileList();
+        }
+    };
+
+    const login = async () => {
+        await authClient.login({
+            identityProvider: "https://identity.ic0.app/#authorize",
+            onSuccess: () => {
+                setIsAuthenticated(true);
+                updateFileList();
+            },
+        });
+    };
+
+    const logout = async () => {
+        await authClient.logout();
+        setIsAuthenticated(false);
+    };
+
+    const updateStatus = (message, type) => {
+        setStatus({ message, type });
+        setTimeout(() => setStatus({ message: '', type: '' }), 3000);
+    };
+
+    const updateFileList = async () => {
         const files = await getAllFiles();
-        DOM.fileList.innerHTML = '';
-        files.forEach(file => {
-            const li = createFileListItem(file.name);
-            li.classList.add('fade-in');
-            DOM.fileList.appendChild(li);
-        });
-    }
+        setFiles(files);
+    };
 
-    function createFileListItem(fileName) {
-        const li = document.createElement('li');
-        li.textContent = fileName;
-        
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'button-container';
-        
-        const downloadButton = createButton('Download', () => downloadFile(fileName));
-        const deleteButton = createButton('Delete', async () => {
-            await deleteFileLocally(fileName);
-            await updateFileList();
-        });
-        
-        buttonContainer.appendChild(downloadButton);
-        buttonContainer.appendChild(deleteButton);
-        li.appendChild(buttonContainer);
-        return li;
-    }
-
-    function createButton(text, onClick) {
-        const button = document.createElement('button');
-        button.textContent = text;
-        button.className = 'btn btn-small';
-        button.onclick = onClick;
-        return button;
-    }
-
-    async function downloadFile(fileName) {
+    const downloadFile = async (fileName) => {
         try {
             const file = await getFileLocally(fileName);
             if (!file) throw new Error('File not found');
@@ -155,85 +230,69 @@ const FileVault = (function() {
         } catch (error) {
             updateStatus('Download failed: ' + error.message, 'error');
         }
-    }
+    };
 
-    function triggerDownload(fileName, contentType, content) {
-        const blob = new Blob([content], { type: contentType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
+    const deleteFile = async (fileName) => {
+        await deleteFileLocally(fileName);
+        await updateFileList();
+    };
 
-    async function initIndexedDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open('FileStorage', 1);
-            request.onerror = event => reject("IndexedDB error: " + event.target.error);
-            request.onsuccess = event => {
-                db = event.target.result;
-                resolve();
-            };
-            request.onupgradeneeded = event => {
-                db = event.target.result;
-                db.createObjectStore("files", { keyPath: "name" });
-            };
-        });
-    }
+    useEffect(() => {
+        initAuth();
+        initIndexedDB();
+    }, []);
 
-    function readFileAsArrayBuffer(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = e => resolve(e.target.result);
-            reader.onerror = e => reject(e.target.error);
-            reader.readAsArrayBuffer(file);
-        });
-    }
+    return `
+        <div class="container">
+            <header>
+                <h1>FileVault</h1>
+            </header>
+            <nav class="button-container">
+                ${getIsAuthenticated() 
+                    ? `<button class="btn" onclick="logout()">Logout</button>`
+                    : `<button class="btn" onclick="login()">Login</button>`
+                }
+            </nav>
+            ${getIsAuthenticated() ? `
+                <main>
+                    ${FileUpload({ onUpload: updateFileList, updateStatus })}
+                    ${FileList({ files: getFiles(), onDownload: downloadFile, onDelete: deleteFile })}
+                </main>
+            ` : ''}
+            ${StatusMessage(getStatus())}
+        </div>
+    `;
+}
 
-    async function saveFileLocally(name, type, content) {
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(["files"], "readwrite");
-            const store = transaction.objectStore("files");
-            const request = store.put({ name, type, content });
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve();
-        });
-    }
+// Render function
+function render(component, container) {
+    container.innerHTML = component();
+}
 
-    async function getFileLocally(name) {
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(["files"], "readonly");
-            const store = transaction.objectStore("files");
-            const request = store.get(name);
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
-        });
-    }
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    const root = document.getElementById('root');
+    render(App, root);
+});
 
-    async function deleteFileLocally(name) {
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(["files"], "readwrite");
-            const store = transaction.objectStore("files");
-            const request = store.delete(name);
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve();
-        });
-    }
+// Helper functions
+function readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = e => reject(e.target.error);
+        reader.readAsArrayBuffer(file);
+    });
+}
 
-    async function getAllFiles() {
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction(["files"], "readonly");
-            const store = transaction.objectStore("files");
-            const request = store.getAll();
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
-        });
-    }
-
-    return { init };
-})();
-
-document.addEventListener('DOMContentLoaded', FileVault.init);
+function triggerDownload(fileName, contentType, content) {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
