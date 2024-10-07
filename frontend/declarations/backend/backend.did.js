@@ -1,15 +1,20 @@
 export const idlFactory = ({ IDL }) => {
-  const File = IDL.Record({
-    'data' : IDL.Vec(IDL.Nat8),
+  const FileInfo = IDL.Record({
+    'contentType' : IDL.Text,
     'name' : IDL.Text,
-    'content_type' : IDL.Text,
+    'chunkCount' : IDL.Nat,
   });
   return IDL.Service({
-    'getFile' : IDL.Func([IDL.Text], [IDL.Opt(File)], ['query']),
+    'getFileChunk' : IDL.Func(
+        [IDL.Text, IDL.Nat],
+        [IDL.Opt(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    'getFileInfo' : IDL.Func([IDL.Text], [IDL.Opt(FileInfo)], ['query']),
     'listFiles' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
-    'uploadFile' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)],
-        [IDL.Text],
+    'uploadFileChunk' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Vec(IDL.Nat8)],
+        [],
         [],
       ),
   });

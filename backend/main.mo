@@ -1,10 +1,9 @@
-import Error "mo:base/Error";
-import Func "mo:base/Func";
 import Hash "mo:base/Hash";
 import Nat8 "mo:base/Nat8";
 
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
+import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
@@ -12,70 +11,68 @@ import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 
 actor {
-  // File type definition
-  type File = {
+  type FileInfo = {
     name: Text;
-    content_type: Text;
+    contentType: Text;
+    chunkCount: Nat;
+  };
+
+  type FileChunk = {
     data: Blob;
   };
 
-  // Stable variable to store files
-  stable var fileEntries : [(Text, File)] = [];
+  stable var fileInfoEntries : [(Text, FileInfo)] = [];
+  stable var fileChunkEntries : [(Text, [FileChunk])] = [];
 
-  // Create a HashMap to store files
-  var files = HashMap.HashMap<Text, File>(0, Text.equal, Text.hash);
+  var fileInfos = HashMap.HashMap<Text, FileInfo>(0, Text.equal, Text.hash);
+  var fileChunks = HashMap.HashMap<Text, [FileChunk]>(0, Text.equal, Text.hash);
 
-  // Maximum file size (10MB)
-  let MAX_FILE_SIZE : Nat = 10 * 1024 * 1024;
-
-  // Function to upload a file
-  public func uploadFile(name: Text, content_type: Text, data: [Nat8]) : async Text {
-    if (data.size() == 0) {
-      Debug.print("Error: Empty file data received");
-      return "Error: Empty file data";
+  public func uploadFileChunk(name: Text, contentType: Text, chunkIndex: Nat, totalChunks: Nat, data: [Nat8]) : async () {
+    let chunk : FileChunk = { data = Blob.fromArray(data) };
+    
+    switch (fileChunks.get(name)) {
+      case (null) {
+        let newChunks = Array.init<FileChunk>(totalChunks, chunk);
+        newChunks[chunkIndex] := chunk;
+        fileChunks.put(name, Array.freeze(newChunks));
+        fileInfos.put(name, { name = name; contentType = contentType; chunkCount = totalChunks });
+      };
+      case (?existingChunks) {
+        let updatedChunks = Array.thaw<FileChunk>(existingChunks);
+        updatedChunks[chunkIndex] := chunk;
+        fileChunks.put(name, Array.freeze(updatedChunks));
+      };
     };
-
-    if (data.size() > MAX_FILE_SIZE) {
-      Debug.print("Error: File size exceeds maximum limit");
-      return "Error: File size exceeds 10MB limit";
-    };
-
-    let file : File = {
-      name = name;
-      content_type = content_type;
-      data = Blob.fromArray(data);
-    };
-    files.put(name, file);
-    Debug.print("File uploaded: " # name # " (size: " # Nat.toText(data.size()) # " bytes)");
-    "File uploaded successfully"
   };
 
-  // Function to retrieve a file
-  public query func getFile(name: Text) : async ?File {
-    switch (files.get(name)) {
+  public query func getFileInfo(name: Text) : async ?FileInfo {
+    fileInfos.get(name)
+  };
+
+  public query func getFileChunk(name: Text, chunkIndex: Nat) : async ?Blob {
+    switch (fileChunks.get(name)) {
       case (null) { null };
-      case (?file) {
-        ?{
-          name = file.name;
-          content_type = file.content_type;
-          data = file.data;
+      case (?chunks) {
+        if (chunkIndex < chunks.size()) {
+          ?chunks[chunkIndex].data
+        } else {
+          null
         }
       };
     }
   };
 
-  // Function to list all files
   public query func listFiles() : async [Text] {
-    Iter.toArray(files.keys())
+    Iter.toArray(fileInfos.keys())
   };
 
-  // Pre-upgrade hook to preserve data
   system func preupgrade() {
-    fileEntries := Iter.toArray(files.entries());
+    fileInfoEntries := Iter.toArray(fileInfos.entries());
+    fileChunkEntries := Iter.toArray(fileChunks.entries());
   };
 
-  // Post-upgrade hook to restore data
   system func postupgrade() {
-    files := HashMap.fromIter<Text, File>(fileEntries.vals(), 0, Text.equal, Text.hash);
+    fileInfos := HashMap.fromIter<Text, FileInfo>(fileInfoEntries.vals(), 0, Text.equal, Text.hash);
+    fileChunks := HashMap.fromIter<Text, [FileChunk]>(fileChunkEntries.vals(), 0, Text.equal, Text.hash);
   };
 }

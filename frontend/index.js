@@ -32,37 +32,44 @@ document.addEventListener('DOMContentLoaded', async () => {
       uploadStatus.textContent = 'Uploading...';
       uploadStatus.classList.remove('error');
 
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      
-      // Serialize the data using @dfinity/candid
-      const serializedData = IDL.encode([IDL.Vec(IDL.Nat8)], [Array.from(uint8Array)]);
+      const chunks = await readFileInChunks(file);
+      const totalChunks = chunks.length;
 
-      // Simulate progress
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        progressBar.style.width = `${Math.min(progress, 90)}%`;
-      }, 200);
-
-      try {
-        const result = await backend.uploadFile(file.name, file.type, serializedData);
-        clearInterval(interval);
-        progressBar.style.width = '100%';
-        uploadStatus.textContent = result;
-        await updateFileList();
-      } catch (error) {
-        clearInterval(interval);
-        console.error('Upload failed:', error);
-        uploadStatus.textContent = 'Upload failed: ' + error.message;
-        uploadStatus.classList.add('error');
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = chunks[i];
+        const serializedChunk = IDL.encode([IDL.Vec(IDL.Nat8)], [Array.from(chunk)]);
+        await backend.uploadFileChunk(file.name, file.type, i, totalChunks, serializedChunk);
+        updateProgressBar((i + 1) / totalChunks * 100);
       }
+
+      uploadStatus.textContent = 'File uploaded successfully';
+      await updateFileList();
     } catch (error) {
-      console.error('File reading failed:', error);
-      uploadStatus.textContent = 'File reading failed: ' + error.message;
+      console.error('Upload failed:', error);
+      uploadStatus.textContent = 'Upload failed: ' + error.message;
       uploadStatus.classList.add('error');
     }
   });
+
+  async function readFileInChunks(file) {
+    const chunks = [];
+    let offset = 0;
+    while (offset < file.size) {
+      const chunk = await readChunk(file, offset, CHUNK_SIZE);
+      chunks.push(chunk);
+      offset += chunk.length;
+    }
+    return chunks;
+  }
+
+  function readChunk(file, offset, length) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file.slice(offset, offset + length));
+    });
+  }
 
   async function updateFileList() {
     try {
@@ -84,39 +91,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function viewFile(fileName) {
     try {
-      const file = await backend.getFile(fileName);
-      if (file && file.length > 0) {
-        const fileData = file[0];
-        console.log('File data received, size:', fileData.data.length);
-
-        const worker = new Worker(new URL('./fileWorker.js', import.meta.url), { type: 'module' });
-        
-        worker.onmessage = (event) => {
-          const { type, data } = event.data;
-          
-          if (type === 'error') {
-            console.error('Worker error:', data);
-            alert('Failed to process file: ' + data);
-          } else if (type === 'result') {
-            displayFileContent(fileData.content_type, data);
-          } else if (type === 'progress') {
-            updateProgressBar(data);
-          }
-        };
-
-        // Send file data to worker in chunks
-        const chunkCount = Math.ceil(fileData.data.length / CHUNK_SIZE);
-        for (let i = 0; i < chunkCount; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = Math.min((i + 1) * CHUNK_SIZE, fileData.data.length);
-          const chunk = fileData.data.slice(start, end);
-          worker.postMessage({
-            type: 'chunk',
-            data: chunk,
-            contentType: fileData.content_type,
-            isLastChunk: i === chunkCount - 1
-          });
-        }
+      const fileInfo = await backend.getFileInfo(fileName);
+      if (fileInfo) {
+        const blob = await downloadFileInChunks(fileName, fileInfo.chunkCount, fileInfo.contentType);
+        displayFileContent(fileInfo.contentType, URL.createObjectURL(blob));
       } else {
         console.error('File not found or invalid file data');
         alert('File not found or invalid file data');
@@ -125,6 +103,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Failed to view file:', error);
       alert('Failed to view file: ' + error.message);
     }
+  }
+
+  async function downloadFileInChunks(fileName, totalChunks, contentType) {
+    const chunks = [];
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkData = await backend.getFileChunk(fileName, i);
+      chunks.push(new Uint8Array(chunkData));
+      updateProgressBar((i + 1) / totalChunks * 100);
+    }
+    return new Blob(chunks, { type: contentType });
   }
 
   function updateProgressBar(progress) {
@@ -138,10 +126,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function displayFileContent(contentType, data) {
+  function displayFileContent(contentType, url) {
     if (contentType.startsWith('image/')) {
       const img = document.createElement('img');
-      img.src = data;
+      img.src = url;
       img.onerror = (e) => {
         console.error('Failed to load image:', e);
         alert('Failed to load image. Please check the console for more details.');
@@ -149,12 +137,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       img.onload = () => console.log('Image loaded successfully');
       displayInModal(img);
     } else if (contentType.startsWith('text/')) {
-      const pre = document.createElement('pre');
-      pre.textContent = data;
-      displayInModal(pre);
+      fetch(url)
+        .then(response => response.text())
+        .then(text => {
+          const pre = document.createElement('pre');
+          pre.textContent = text;
+          displayInModal(pre);
+        })
+        .catch(error => {
+          console.error('Failed to load text file:', error);
+          alert('Failed to load text file. Please check the console for more details.');
+        });
     } else {
       const link = document.createElement('a');
-      link.href = data;
+      link.href = url;
       link.download = 'download';
       link.textContent = `Download file`;
       displayInModal(link);
