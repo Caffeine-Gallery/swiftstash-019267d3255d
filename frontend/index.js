@@ -1,6 +1,6 @@
-import { backend } from 'declarations/backend';
 import { AuthClient } from "@dfinity/auth-client";
-import { Principal } from "@dfinity/principal";
+import { HttpAgent } from "@dfinity/agent";
+import { backend } from "declarations/backend";
 
 // Custom useState hook
 function useState(initialState) {
@@ -212,18 +212,31 @@ function App() {
     };
 
     const login = async () => {
-        await authClient.login({
-            identityProvider: "https://identity.ic0.app/#authorize",
-            onSuccess: () => {
-                setIsAuthenticated(true);
-                updateFileList();
-            },
-        });
+        try {
+            const internetIdentityUrl = process.env.INTERNET_IDENTITY_URL || "https://identity.ic0.app";
+            await authClient.login({
+                identityProvider: internetIdentityUrl,
+                onSuccess: async () => {
+                    setIsAuthenticated(true);
+                    updateStatus('Login successful', 'success');
+                    await updateFileList();
+                },
+                onError: (error) => {
+                    console.error("Login failed:", error);
+                    updateStatus('Login failed: ' + error.message, 'error');
+                }
+            });
+        } catch (error) {
+            console.error("Login error:", error);
+            updateStatus('Login error: ' + error.message, 'error');
+        }
     };
 
     const logout = async () => {
         await authClient.logout();
         setIsAuthenticated(false);
+        setFiles([]);
+        updateStatus('Logged out successfully', 'success');
     };
 
     const updateStatus = (message, type) => {
@@ -232,8 +245,16 @@ function App() {
     };
 
     const updateFileList = async () => {
-        const files = await getAllFiles();
-        setFiles(files);
+        try {
+            const identity = authClient.getIdentity();
+            const agent = new HttpAgent({ identity });
+            const authenticatedBackend = backend.createActor(backend.canisterId, { agent });
+            const files = await authenticatedBackend.getAllFiles();
+            setFiles(files);
+        } catch (error) {
+            console.error("Error fetching files:", error);
+            updateStatus('Error fetching files: ' + error.message, 'error');
+        }
     };
 
     const downloadFile = async (fileName) => {
@@ -248,8 +269,13 @@ function App() {
     };
 
     const deleteFile = async (fileName) => {
-        await deleteFileLocally(fileName);
-        await updateFileList();
+        try {
+            await deleteFileLocally(fileName);
+            await updateFileList();
+            updateStatus(`File ${fileName} deleted successfully`, 'success');
+        } catch (error) {
+            updateStatus('Delete failed: ' + error.message, 'error');
+        }
     };
 
     useEffect(() => {
@@ -270,7 +296,7 @@ function App() {
                 <nav class="button-container">
                     ${getIsAuthenticated() 
                         ? `<button id="logoutButton" class="btn">Logout</button>`
-                        : `<button id="loginButton" class="btn">Login</button>`
+                        : `<button id="loginButton" class="btn">Login with Internet Identity</button>`
                     }
                 </nav>
                 ${getIsAuthenticated() ? `
