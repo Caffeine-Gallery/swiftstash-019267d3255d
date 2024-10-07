@@ -67,25 +67,38 @@ function updateStatus(message, type) {
 
 // Create authenticated actor
 async function createAuthenticatedActor() {
-    const identity = authClient.getIdentity();
-    const agent = new HttpAgent({ identity });
-    
-    // When deploying locally, we need to configure the agent to use the local replica
-    if (process.env.NODE_ENV !== "production") {
-        await agent.fetchRootKey();
-    }
+    try {
+        const identity = authClient.getIdentity();
+        const agent = new HttpAgent({ identity });
+        
+        // When deploying locally, we need to configure the agent to use the local replica
+        if (process.env.NODE_ENV !== "production") {
+            await agent.fetchRootKey();
+        }
 
-    return Actor.createActor(idlFactory, {
-        agent,
-        canisterId: canisterId,
-    });
+        const actor = Actor.createActor(idlFactory, {
+            agent,
+            canisterId: canisterId,
+        });
+
+        // Verify that the actor has the expected methods
+        if (typeof actor.getFiles !== 'function') {
+            throw new Error('Backend actor does not have a getFiles method');
+        }
+
+        return actor;
+    } catch (error) {
+        console.error("Error creating authenticated actor:", error);
+        throw error;
+    }
 }
 
 // Update file list
 async function updateFileList() {
     try {
         const authenticatedBackend = await createAuthenticatedActor();
-        const files = await authenticatedBackend.getAllFiles();
+        // Changed from getAllFiles to getFiles
+        const files = await authenticatedBackend.getFiles();
         updateState({ files });
     } catch (error) {
         console.error("Error fetching files:", error);
