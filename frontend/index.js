@@ -82,8 +82,8 @@ async function createAuthenticatedActor() {
         });
 
         // Verify that the actor has the expected methods
-        if (typeof actor.getFiles !== 'function') {
-            throw new Error('Backend actor does not have a getFiles method');
+        if (typeof actor.listFiles !== 'function') {
+            throw new Error('Backend actor does not have a listFiles method');
         }
 
         return actor;
@@ -97,8 +97,8 @@ async function createAuthenticatedActor() {
 async function updateFileList() {
     try {
         const authenticatedBackend = await createAuthenticatedActor();
-        // Changed from getAllFiles to getFiles
-        const files = await authenticatedBackend.getFiles();
+        // Changed from getFiles to listFiles
+        const files = await authenticatedBackend.listFiles();
         updateState({ files });
     } catch (error) {
         console.error("Error fetching files:", error);
