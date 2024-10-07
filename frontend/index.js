@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn(`Expected ${totalChunks} chunks, but received ${chunks.length}`);
       }
 
-      const blob = new Blob(chunks, { type: fileInfo.contentType });
+      const blob = new Blob(chunks, { type: fileInfo.contentType || 'application/octet-stream' });
       if (blob.size === 0) {
         throw new Error('Created blob is empty');
       }
@@ -259,17 +259,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('Failed to retrieve file content');
       }
 
-      const blob = new Blob([new Uint8Array(content)], { type: fileInfo.contentType });
+      const contentType = fileInfo.contentType || 'application/octet-stream';
+      const blob = new Blob([new Uint8Array(content)], { type: contentType });
       const url = URL.createObjectURL(blob);
 
       fileContentDisplay.innerHTML = '';
 
-      if (fileInfo.contentType.startsWith('image/')) {
+      if (contentType.startsWith('image/')) {
         const img = document.createElement('img');
         img.src = url;
         img.style.maxWidth = '100%';
         fileContentDisplay.appendChild(img);
-      } else if (fileInfo.contentType.startsWith('text/') || fileInfo.contentType === 'application/json') {
+      } else if (contentType.startsWith('text/') || contentType === 'application/json') {
         const text = await blob.text();
         const pre = document.createElement('pre');
         pre.textContent = text;
