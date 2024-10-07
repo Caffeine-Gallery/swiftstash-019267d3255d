@@ -1,6 +1,7 @@
 import { AuthClient } from "@dfinity/auth-client";
-import { HttpAgent } from "@dfinity/agent";
-import { backend } from "declarations/backend";
+import { HttpAgent, Actor } from "@dfinity/agent";
+import { idlFactory } from "declarations/backend/backend.did.js";
+import { canisterId } from "declarations/backend/index.js";
 
 // Global state
 let state = {
@@ -64,12 +65,26 @@ function updateStatus(message, type) {
     setTimeout(() => updateState({ status: { message: '', type: '' } }), 3000);
 }
 
+// Create authenticated actor
+async function createAuthenticatedActor() {
+    const identity = authClient.getIdentity();
+    const agent = new HttpAgent({ identity });
+    
+    // When deploying locally, we need to configure the agent to use the local replica
+    if (process.env.NODE_ENV !== "production") {
+        await agent.fetchRootKey();
+    }
+
+    return Actor.createActor(idlFactory, {
+        agent,
+        canisterId: canisterId,
+    });
+}
+
 // Update file list
 async function updateFileList() {
     try {
-        const identity = authClient.getIdentity();
-        const agent = new HttpAgent({ identity });
-        const authenticatedBackend = backend.createActor(backend.canisterId, { agent });
+        const authenticatedBackend = await createAuthenticatedActor();
         const files = await authenticatedBackend.getAllFiles();
         updateState({ files });
     } catch (error) {
@@ -195,7 +210,8 @@ async function handleUpload() {
 
     try {
         const content = await readFileAsArrayBuffer(file);
-        await saveFileLocally(file.name, file.type, content);
+        const authenticatedBackend = await createAuthenticatedActor();
+        await authenticatedBackend.uploadFile(file.name, Array.from(new Uint8Array(content)));
         updateStatus('File uploaded successfully', 'success');
         await updateFileList();
     } catch (error) {
@@ -205,9 +221,11 @@ async function handleUpload() {
 
 async function downloadFile(fileName) {
     try {
-        const file = await getFileLocally(fileName);
-        if (!file) throw new Error('File not found');
-        triggerDownload(fileName, file.type, file.content);
+        const authenticatedBackend = await createAuthenticatedActor();
+        const fileData = await authenticatedBackend.downloadFile(fileName);
+        if (!fileData) throw new Error('File not found');
+        const content = new Uint8Array(fileData).buffer;
+        triggerDownload(fileName, 'application/octet-stream', content);
         updateStatus(`File ${fileName} downloaded successfully`, 'success');
     } catch (error) {
         updateStatus('Download failed: ' + error.message, 'error');
@@ -216,7 +234,8 @@ async function downloadFile(fileName) {
 
 async function deleteFile(fileName) {
     try {
-        await deleteFileLocally(fileName);
+        const authenticatedBackend = await createAuthenticatedActor();
+        await authenticatedBackend.deleteFile(fileName);
         await updateFileList();
         updateStatus(`File ${fileName} deleted successfully`, 'success');
     } catch (error) {
@@ -245,56 +264,5 @@ function triggerDownload(fileName, contentType, content) {
     URL.revokeObjectURL(url);
 }
 
-// IndexedDB operations
-let db;
-
-async function initIndexedDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open('FileStorage', 1);
-        request.onerror = event => reject("IndexedDB error: " + event.target.error);
-        request.onsuccess = event => {
-            db = event.target.result;
-            resolve();
-        };
-        request.onupgradeneeded = event => {
-            db = event.target.result;
-            db.createObjectStore("files", { keyPath: "name" });
-        };
-    });
-}
-
-async function saveFileLocally(name, type, content) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(["files"], "readwrite");
-        const store = transaction.objectStore("files");
-        const request = store.put({ name, type, content });
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-    });
-}
-
-async function getFileLocally(name) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(["files"], "readonly");
-        const store = transaction.objectStore("files");
-        const request = store.get(name);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-    });
-}
-
-async function deleteFileLocally(name) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(["files"], "readwrite");
-        const store = transaction.objectStore("files");
-        const request = store.delete(name);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-    });
-}
-
 // Start the application
-document.addEventListener('DOMContentLoaded', async () => {
-    await initIndexedDB();
-    init();
-});
+document.addEventListener('DOMContentLoaded', init);
