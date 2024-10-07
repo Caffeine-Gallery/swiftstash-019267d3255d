@@ -29,7 +29,7 @@ actor {
   stable var fileChunkEntries : [(Text, [FileChunk])] = [];
 
   var fileInfos = HashMap.HashMap<Text, FileInfo>(0, Text.equal, Text.hash);
-  var fileChunks = HashMap.HashMap<Text, [FileChunk]>(0, Text.equal, Text.hash);
+  var fileChunks = HashMap.HashMap<Text, Buffer.Buffer<FileChunk>>(0, Text.equal, Text.hash);
 
   public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat64, chunkIndex: Nat64, totalChunks: Nat64, data: [Nat8]) : async () {
     if (data.size() == 0) {
@@ -45,15 +45,20 @@ actor {
           Debug.print("Error: Attempted to upload file " # name # " with 0 bytes");
           throw Error.reject("Cannot upload file with 0 bytes");
         };
-        let newChunks = Array.init<FileChunk>(Nat64.toNat(totalChunks), chunk);
-        newChunks[Nat64.toNat(chunkIndex)] := chunk;
-        fileChunks.put(name, Array.freeze(newChunks));
+        let newChunks = Buffer.Buffer<FileChunk>(Nat64.toNat(totalChunks));
+        newChunks.add(chunk);
+        fileChunks.put(name, newChunks);
         fileInfos.put(name, { name = name; contentType = contentType; chunkCount = totalChunks; size = totalSize });
       };
       case (?existingChunks) {
-        let updatedChunks = Array.thaw<FileChunk>(existingChunks);
-        updatedChunks[Nat64.toNat(chunkIndex)] := chunk;
-        fileChunks.put(name, Array.freeze(updatedChunks));
+        if (Nat64.toNat(chunkIndex) == existingChunks.size()) {
+          existingChunks.add(chunk);
+        } else if (Nat64.toNat(chunkIndex) < existingChunks.size()) {
+          existingChunks.put(Nat64.toNat(chunkIndex), chunk);
+        } else {
+          Debug.print("Error: Invalid chunk index " # Nat64.toText(chunkIndex) # " for file " # name);
+          throw Error.reject("Invalid chunk index");
+        };
       };
     };
 
@@ -89,7 +94,7 @@ actor {
       case (?chunks) {
         let index = Nat64.toNat(chunkIndex);
         if (index < chunks.size()) {
-          let chunkData = chunks[index].data;
+          let chunkData = chunks.get(index).data;
           let chunkArray = Blob.toArray(chunkData);
           if (chunkArray.size() == 0) {
             Debug.print("Warning: Empty chunk detected for file " # name # " at index " # Nat64.toText(chunkIndex));
@@ -126,11 +131,20 @@ actor {
 
   system func preupgrade() {
     fileInfoEntries := Iter.toArray(fileInfos.entries());
-    fileChunkEntries := Iter.toArray(fileChunks.entries());
+    
+    let tempChunkEntries = Buffer.Buffer<(Text, [FileChunk])>(fileChunks.size());
+    for ((name, chunkBuffer) in fileChunks.entries()) {
+      tempChunkEntries.add((name, Buffer.toArray(chunkBuffer)));
+    };
+    fileChunkEntries := Buffer.toArray(tempChunkEntries);
   };
 
   system func postupgrade() {
     fileInfos := HashMap.fromIter<Text, FileInfo>(fileInfoEntries.vals(), 0, Text.equal, Text.hash);
-    fileChunks := HashMap.fromIter<Text, [FileChunk]>(fileChunkEntries.vals(), 0, Text.equal, Text.hash);
+    
+    fileChunks := HashMap.HashMap<Text, Buffer.Buffer<FileChunk>>(0, Text.equal, Text.hash);
+    for ((name, chunks) in fileChunkEntries.vals()) {
+      fileChunks.put(name, Buffer.fromArray<FileChunk>(chunks));
+    };
   };
 }
