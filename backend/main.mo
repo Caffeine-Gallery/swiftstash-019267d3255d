@@ -1,4 +1,6 @@
+import Bool "mo:base/Bool";
 import Hash "mo:base/Hash";
+import Int "mo:base/Int";
 import Nat8 "mo:base/Nat8";
 
 import Array "mo:base/Array";
@@ -127,6 +129,33 @@ actor {
         throw Error.reject("File not found");
       };
     };
+  };
+
+  public query func verifyFileIntegrity(name: Text) : async Bool {
+    switch (fileInfos.get(name), fileChunks.get(name)) {
+      case (?info, ?chunks) {
+        let actualChunkCount = chunks.size();
+        let expectedChunkCount = Nat64.toNat(info.chunkCount);
+        if (actualChunkCount != expectedChunkCount) {
+          Debug.print("Integrity check failed for file " # name # ": Chunk count mismatch");
+          return false;
+        };
+        var totalSize : Nat64 = 0;
+        for (chunk in chunks.vals()) {
+          totalSize += Nat64.fromNat(chunk.data.size());
+        };
+        if (totalSize != info.size) {
+          Debug.print("Integrity check failed for file " # name # ": Size mismatch");
+          return false;
+        };
+        Debug.print("Integrity check passed for file " # name);
+        true
+      };
+      case _ {
+        Debug.print("Integrity check failed: File not found " # name);
+        false
+      };
+    }
   };
 
   system func preupgrade() {

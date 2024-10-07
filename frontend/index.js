@@ -58,6 +58,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateProgressBar((i + 1) / totalChunks * 100);
       }
 
+      const integrityCheck = await backend.verifyFileIntegrity(file.name);
+      if (!integrityCheck) {
+        throw new Error('File integrity check failed after upload');
+      }
+
       uploadStatus.textContent = 'File uploaded successfully';
       await updateFileList();
     } catch (error) {
@@ -141,6 +146,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('File not found');
       }
 
+      const integrityCheck = await backend.verifyFileIntegrity(fileName);
+      if (!integrityCheck) {
+        throw new Error('File integrity check failed before download');
+      }
+
       const totalChunks = Number(fileInfo.chunkCount);
       const chunks = [];
       let totalSize = 0;
@@ -154,12 +164,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (!chunkData) {
           console.error(`Failed to download chunk ${i} after ${MAX_RETRY_ATTEMPTS} attempts`);
-          continue;
+          throw new Error(`Failed to download chunk ${i}`);
         }
         const chunk = new Uint8Array(chunkData);
         if (chunk.length === 0) {
           console.error(`Chunk ${i} is empty`);
-          continue;
+          throw new Error(`Empty chunk ${i} detected`);
         }
         chunks.push(chunk);
         totalSize += chunk.length;
@@ -171,7 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       if (chunks.length !== totalChunks) {
-        console.warn(`Expected ${totalChunks} chunks, but received ${chunks.length}`);
+        throw new Error(`Expected ${totalChunks} chunks, but received ${chunks.length}`);
       }
 
       const blob = new Blob(chunks, { type: fileInfo.contentType });
@@ -180,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       if (blob.size !== Number(fileInfo.size)) {
-        console.warn(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${blob.size}`);
+        throw new Error(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${blob.size}`);
       }
 
       const url = URL.createObjectURL(blob);
