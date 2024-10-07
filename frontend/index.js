@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const logoutButton = document.getElementById('logoutButton');
   const mainContent = document.getElementById('mainContent');
 
-  initIndexedDB();
+  await initIndexedDB();
   await initAuth();
 
   loginButton.onclick = login;
@@ -78,7 +78,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       progressBarContainer.style.display = 'block';
       const content = await readFileAsArrayBuffer(file);
       await saveFileLocally(file.name, file.type, content);
-      await backend.uploadFile(file.name, file.type, Array.from(new Uint8Array(content)));
       updateStatus('File uploaded successfully', 'success');
       await updateFileList();
     } catch (error) {
@@ -100,10 +99,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function updateFileList() {
-    const files = await backend.listFiles(userPrincipal);
+    const files = await getAllFiles();
     fileList.innerHTML = '';
-    files.forEach(fileName => {
-      const li = createFileListItem(fileName);
+    files.forEach(file => {
+      const li = createFileListItem(file.name);
       fileList.appendChild(li);
     });
   }
@@ -117,7 +116,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const downloadButton = createButton('Download', () => downloadFile(fileName));
     const deleteButton = createButton('Delete', async () => {
-      await backend.deleteFile(fileName);
       await deleteFileLocally(fileName);
       await updateFileList();
     });
@@ -138,10 +136,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function downloadFile(fileName) {
     try {
-      const fileInfo = await backend.getFileInfo(userPrincipal, fileName);
-      if (!fileInfo) throw new Error('File not found');
-      const content = new Uint8Array(fileInfo.content).buffer;
-      triggerDownload(fileName, fileInfo.contentType, content);
+      const file = await getFileLocally(fileName);
+      if (!file) throw new Error('File not found');
+      triggerDownload(fileName, file.type, file.content);
       updateStatus(`File ${fileName} downloaded successfully`, 'success');
     } catch (error) {
       updateStatus('Download failed: ' + error.message, 'error');
@@ -160,16 +157,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     URL.revokeObjectURL(url);
   }
 
-  function initIndexedDB() {
-    const request = indexedDB.open('FileStorage', 1);
-    request.onerror = event => console.error("IndexedDB error:", event.target.error);
-    request.onsuccess = event => {
-      db = event.target.result;
-    };
-    request.onupgradeneeded = event => {
-      db = event.target.result;
-      db.createObjectStore("files", { keyPath: "name" });
-    };
+  async function initIndexedDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('FileStorage', 1);
+      request.onerror = event => reject("IndexedDB error: " + event.target.error);
+      request.onsuccess = event => {
+        db = event.target.result;
+        resolve();
+      };
+      request.onupgradeneeded = event => {
+        db = event.target.result;
+        db.createObjectStore("files", { keyPath: "name" });
+      };
+    });
   }
 
   function readFileAsArrayBuffer(file) {
@@ -191,6 +191,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  async function getFileLocally(name) {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(["files"], "readonly");
+      const store = transaction.objectStore("files");
+      const request = store.get(name);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+
   async function deleteFileLocally(name) {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(["files"], "readwrite");
@@ -198,6 +208,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const request = store.delete(name);
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve();
+    });
+  }
+
+  async function getAllFiles() {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(["files"], "readonly");
+      const store = transaction.objectStore("files");
+      const request = store.getAll();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
     });
   }
 });
