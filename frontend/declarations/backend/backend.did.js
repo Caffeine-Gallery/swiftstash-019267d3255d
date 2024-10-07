@@ -14,7 +14,7 @@ export const idlFactory = ({ IDL }) => {
     'getFileInfo' : IDL.Func([IDL.Text], [IDL.Opt(FileInfo)], ['query']),
     'listFiles' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
     'uploadFileChunk' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Vec(IDL.Nat8)],
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Vec(IDL.Nat8)],
         [],
         [],
       ),

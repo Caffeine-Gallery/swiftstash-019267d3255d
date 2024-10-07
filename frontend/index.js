@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       for (let i = 0; i < totalChunks; i++) {
         const chunk = chunks[i];
         const serializedChunk = IDL.encode([IDL.Vec(IDL.Nat8)], [Array.from(chunk)]);
-        await backend.uploadFileChunk(file.name, file.type, i, totalChunks, serializedChunk);
+        await backend.uploadFileChunk(file.name, file.type, file.size, i, totalChunks, serializedChunk);
         updateProgressBar((i + 1) / totalChunks * 100);
       }
 
@@ -96,9 +96,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const fileInfo = await backend.getFileInfo(fileName);
       console.log('File info received:', fileInfo);
       if (fileInfo) {
-        const fileData = await downloadFileInChunks(fileName, fileInfo.chunkCount, fileInfo.contentType);
+        const fileData = await downloadFileInChunks(fileInfo);
         if (fileData) {
-          displayFileContent(fileInfo.name, fileInfo.contentType, fileData);
+          displayFileContent(fileInfo, fileData);
         } else {
           throw new Error('Failed to download file data');
         }
@@ -111,19 +111,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  async function downloadFileInChunks(fileName, totalChunks, contentType) {
+  async function downloadFileInChunks(fileInfo) {
     updateProgressBar(0);
     try {
       const chunks = [];
-      for (let i = 0; i < totalChunks; i++) {
-        const chunk = await retryDownloadChunk(fileName, i);
+      for (let i = 0; i < fileInfo.chunkCount; i++) {
+        const chunk = await retryDownloadChunk(fileInfo.name, i);
         if (chunk) {
           chunks.push(chunk);
         } else {
           console.error(`Failed to download chunk ${i} after multiple retries`);
           return null;
         }
-        updateProgressBar((i + 1) / totalChunks * 100);
+        updateProgressBar((i + 1) / fileInfo.chunkCount * 100);
       }
 
       const concatenatedChunks = chunks.reduce((acc, chunk) => {
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }, new Uint8Array());
 
       console.log(`Assembled file size: ${concatenatedChunks.length} bytes`);
-      return new Blob([concatenatedChunks], { type: contentType || 'application/octet-stream' });
+      return new Blob([concatenatedChunks], { type: fileInfo.contentType });
     } catch (error) {
       console.error('Error downloading file chunks:', error);
       return null;
@@ -170,13 +170,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function displayFileContent(fileName, contentType, fileData) {
-    const actualContentType = fileData.type || contentType || 'application/octet-stream';
-    const fileSize = fileData.size;
-    console.log('Displaying file content. Content type:', actualContentType, 'File size:', fileSize);
+  function displayFileContent(fileInfo, fileData) {
+    console.log('Displaying file content. File info:', fileInfo, 'Blob size:', fileData.size);
     const url = URL.createObjectURL(fileData);
 
-    if (actualContentType.startsWith('image/')) {
+    if (fileInfo.contentType.startsWith('image/')) {
       const img = document.createElement('img');
       img.src = url;
       img.onerror = (e) => {
@@ -184,14 +182,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('Failed to load image. Please check the console for more details.');
       };
       img.onload = () => console.log('Image loaded successfully');
-      displayInModal(img, fileName, actualContentType, fileSize);
-    } else if (actualContentType.startsWith('text/')) {
+      displayInModal(img, fileInfo, fileData.size);
+    } else if (fileInfo.contentType.startsWith('text/')) {
       fetch(url)
         .then(response => response.text())
         .then(text => {
           const pre = document.createElement('pre');
           pre.textContent = text;
-          displayInModal(pre, fileName, actualContentType, fileSize);
+          displayInModal(pre, fileInfo, fileData.size);
         })
         .catch(error => {
           console.error('Failed to load text file:', error);
@@ -200,9 +198,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
-      link.textContent = `Download ${fileName} (${formatFileSize(fileSize)})`;
-      displayInModal(link, fileName, actualContentType, fileSize);
+      link.download = fileInfo.name;
+      link.textContent = `Download ${fileInfo.name} (${formatFileSize(fileData.size)})`;
+      displayInModal(link, fileInfo, fileData.size);
     }
   }
 
@@ -212,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else return (bytes / 1048576).toFixed(2) + ' MB';
   }
 
-  function displayInModal(content, fileName, contentType, fileSize) {
+  function displayInModal(content, fileInfo, actualSize) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     const modalContent = document.createElement('div');
@@ -222,11 +220,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeBtn.textContent = '×';
     closeBtn.onclick = () => document.body.removeChild(modal);
 
-    const fileInfo = document.createElement('p');
-    fileInfo.textContent = `File: ${fileName} | Type: ${contentType} | Size: ${formatFileSize(fileSize)}`;
+    const fileInfoText = document.createElement('p');
+    fileInfoText.textContent = `File: ${fileInfo.name} | Type: ${fileInfo.contentType} | Size: ${formatFileSize(actualSize)} (Stored size: ${formatFileSize(fileInfo.size)})`;
     
     modalContent.appendChild(closeBtn);
-    modalContent.appendChild(fileInfo);
+    modalContent.appendChild(fileInfoText);
     modalContent.appendChild(content);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);

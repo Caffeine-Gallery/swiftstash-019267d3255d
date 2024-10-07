@@ -9,5 +9,5 @@ service : {
   getFileChunk: (text, nat) -> (opt blob) query;
   getFileInfo: (text) -> (opt FileInfo) query;
   listFiles: () -> (vec text) query;
-  uploadFileChunk: (text, text, nat, nat, vec nat8) -> ();
+  uploadFileChunk: (text, text, nat, nat, nat, vec nat8) -> ();
 }

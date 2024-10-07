@@ -13,7 +13,7 @@ export interface _SERVICE {
   'getFileInfo' : ActorMethod<[string], [] | [FileInfo]>,
   'listFiles' : ActorMethod<[], Array<string>>,
   'uploadFileChunk' : ActorMethod<
-    [string, string, bigint, bigint, Uint8Array | number[]],
+    [string, string, bigint, bigint, bigint, Uint8Array | number[]],
     undefined
   >,
 }

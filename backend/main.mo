@@ -29,7 +29,7 @@ actor {
   var fileInfos = HashMap.HashMap<Text, FileInfo>(0, Text.equal, Text.hash);
   var fileChunks = HashMap.HashMap<Text, [FileChunk]>(0, Text.equal, Text.hash);
 
-  public func uploadFileChunk(name: Text, contentType: Text, chunkIndex: Nat, totalChunks: Nat, data: [Nat8]) : async () {
+  public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat, chunkIndex: Nat, totalChunks: Nat, data: [Nat8]) : async () {
     let chunk : FileChunk = { data = Blob.fromArray(data) };
     
     switch (fileChunks.get(name)) {
@@ -37,7 +37,7 @@ actor {
         let newChunks = Array.init<FileChunk>(totalChunks, chunk);
         newChunks[chunkIndex] := chunk;
         fileChunks.put(name, Array.freeze(newChunks));
-        fileInfos.put(name, { name = name; contentType = contentType; chunkCount = totalChunks; size = 0 });
+        fileInfos.put(name, { name = name; contentType = contentType; chunkCount = totalChunks; size = totalSize });
       };
       case (?existingChunks) {
         let updatedChunks = Array.thaw<FileChunk>(existingChunks);
@@ -46,19 +46,7 @@ actor {
       };
     };
 
-    // Update file size
-    switch (fileInfos.get(name)) {
-      case (?info) {
-        let updatedSize = info.size + chunk.data.size();
-        fileInfos.put(name, { name = info.name; contentType = info.contentType; chunkCount = info.chunkCount; size = updatedSize });
-      };
-      case (null) {
-        // This case should not happen, but handle it just in case
-        Debug.print("Warning: File info not found when updating size for " # name);
-      };
-    };
-
-    Debug.print("Uploaded chunk " # Nat.toText(chunkIndex) # " of " # Nat.toText(totalChunks) # " for file " # name);
+    Debug.print("Uploaded chunk " # Nat.toText(chunkIndex) # " of " # Nat.toText(totalChunks) # " for file " # name # " (Total size: " # Nat.toText(totalSize) # " bytes)");
   };
 
   public query func getFileInfo(name: Text) : async ?FileInfo {
