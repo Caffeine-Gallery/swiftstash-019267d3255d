@@ -78,32 +78,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       const file = await backend.getFile(fileName);
       if (file && file.length > 0) {
         const fileData = file[0];
-        console.log('File data:', fileData);  // Log file data for debugging
+        console.log('File data:', fileData);
 
         // Decode the file data
         const decodedData = new Uint8Array(fileData.data);
-        console.log('Decoded data:', decodedData);  // Log decoded data for debugging
-
-        const blob = new Blob([decodedData], { type: fileData.content_type });
-        console.log('Blob:', blob);  // Log blob for debugging
-
-        const url = URL.createObjectURL(blob);
-        console.log('Created URL:', url);  // Log created URL for debugging
+        console.log('Decoded data length:', decodedData.length);
 
         if (fileData.content_type.startsWith('image/')) {
+          // For images, use a data URL instead of a Blob URL
+          const base64 = btoa(String.fromCharCode.apply(null, decodedData));
+          const dataUrl = `data:${fileData.content_type};base64,${base64}`;
+          console.log('Data URL created');
+
           const img = document.createElement('img');
-          img.src = url;
-          img.onerror = () => {
-            console.error('Failed to load image');
+          img.src = dataUrl;
+          img.onerror = (e) => {
+            console.error('Failed to load image:', e);
             alert('Failed to load image. Please check the console for more details.');
           };
+          img.onload = () => console.log('Image loaded successfully');
           displayInModal(img);
         } else if (fileData.content_type.startsWith('text/')) {
-          const text = await blob.text();
+          const text = new TextDecoder().decode(decodedData);
           const pre = document.createElement('pre');
           pre.textContent = text;
           displayInModal(pre);
         } else {
+          const blob = new Blob([decodedData], { type: fileData.content_type });
+          const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
           link.download = fileData.name;

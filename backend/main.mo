@@ -44,7 +44,16 @@ actor {
 
   // Function to retrieve a file
   public query func getFile(name: Text) : async ?File {
-    files.get(name)
+    switch (files.get(name)) {
+      case (null) { null };
+      case (?file) {
+        ?{
+          name = file.name;
+          content_type = file.content_type;
+          data = file.data;
+        }
+      };
+    }
   };
 
   // Function to list all files
