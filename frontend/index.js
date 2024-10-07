@@ -95,10 +95,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('File info received:', fileInfo);
       if (fileInfo) {
         const fileData = await downloadFileInChunks(fileName, fileInfo.chunkCount, fileInfo.contentType);
-        displayFileContent(fileInfo.name, fileInfo.contentType, fileData);
+        if (fileData) {
+          displayFileContent(fileInfo.name, fileInfo.contentType, fileData);
+        } else {
+          throw new Error('Failed to download file data');
+        }
       } else {
-        console.error('File not found or invalid file data');
-        alert('File not found or invalid file data');
+        throw new Error('File not found or invalid file data');
       }
     } catch (error) {
       console.error('Failed to view file:', error);
@@ -107,18 +110,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function downloadFileInChunks(fileName, totalChunks, contentType) {
-    const chunks = [];
     updateProgressBar(0);
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkData = await backend.getFileChunk(fileName, i);
-      if (chunkData) {
-        chunks.push(new Uint8Array(chunkData));
-      } else {
-        console.error(`Failed to download chunk ${i} of file ${fileName}`);
+    try {
+      const chunkPromises = Array.from({ length: totalChunks }, (_, i) => 
+        backend.getFileChunk(fileName, i)
+      );
+      const chunks = await Promise.all(chunkPromises);
+      updateProgressBar(100);
+
+      const validChunks = chunks.filter(chunk => chunk !== null);
+      if (validChunks.length !== totalChunks) {
+        console.error(`Expected ${totalChunks} chunks, but received ${validChunks.length} valid chunks`);
+        return null;
       }
-      updateProgressBar((i + 1) / totalChunks * 100);
+
+      const concatenatedChunks = validChunks.reduce((acc, chunk) => {
+        const chunkArray = new Uint8Array(chunk);
+        const newArray = new Uint8Array(acc.length + chunkArray.length);
+        newArray.set(acc);
+        newArray.set(chunkArray, acc.length);
+        return newArray;
+      }, new Uint8Array());
+
+      console.log(`Assembled file size: ${concatenatedChunks.length} bytes`);
+      return new Blob([concatenatedChunks], { type: contentType || 'application/octet-stream' });
+    } catch (error) {
+      console.error('Error downloading file chunks:', error);
+      return null;
     }
-    return new Blob(chunks, { type: contentType || 'application/octet-stream' });
   }
 
   function updateProgressBar(progress) {
@@ -133,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function displayFileContent(fileName, contentType, fileData) {
-    console.log('Displaying file content. Content type:', contentType);
+    console.log('Displaying file content. Content type:', contentType, 'File size:', fileData.size);
     const url = URL.createObjectURL(fileData);
 
     if (contentType && contentType.startsWith('image/')) {

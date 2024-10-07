@@ -68,7 +68,7 @@ actor {
       };
       case (?chunks) {
         if (chunkIndex < chunks.size()) {
-          Debug.print("Returning chunk " # Nat.toText(chunkIndex) # " of file " # name);
+          Debug.print("Returning chunk " # Nat.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunks[chunkIndex].data.size()));
           ?chunks[chunkIndex].data
         } else {
           Debug.print("Chunk index out of range for file " # name);
