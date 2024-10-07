@@ -122,6 +122,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (fileInfo.size === BigInt(0)) {
           throw new Error('File size is 0 bytes');
         }
+        const fileIntegrity = await backend.verifyFileIntegrity(fileName);
+        if (!fileIntegrity) {
+          throw new Error('File integrity check failed');
+        }
         const fileData = await downloadFileInChunks(fileInfo);
         if (fileData) {
           displayFileContent(fileInfo, fileData);
