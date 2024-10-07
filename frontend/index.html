@@ -3,25 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Storage App</title>
+    <title>File Upload and Download</title>
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
-    <div class="container">
-        <h1>File Storage App</h1>
-        <div class="upload-section">
-            <input type="file" id="fileInput" />
-            <button id="uploadButton">Upload</button>
-            <div id="uploadStatus" class="status"></div>
-            <div id="progressBarContainer" class="progress-container">
-                <div id="progressBar" class="progress-bar"></div>
-            </div>
-        </div>
-        <div class="file-list">
-            <h2>Uploaded Files</h2>
-            <ul id="fileList"></ul>
-        </div>
+    <h1>File Upload and Download</h1>
+    <input type="file" id="fileInput">
+    <button id="uploadButton">Upload</button>
+    <div id="progressBarContainer" style="display: none;">
+        <div id="progressBar"></div>
     </div>
+    <p id="uploadStatus"></p>
+    <h2>Uploaded Files:</h2>
+    <ul id="fileList"></ul>
+    <h2>File Content:</h2>
+    <div id="fileContentDisplay"></div>
     <script type="module" src="index.js"></script>
 </body>
 </html>

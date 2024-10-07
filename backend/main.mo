@@ -174,6 +174,24 @@ actor {
     }
   };
 
+  public query func getFileContent(name: Text) : async ?[Nat8] {
+    switch (fileChunks.get(name)) {
+      case (null) {
+        Debug.print("File not found: " # name);
+        null
+      };
+      case (?chunks) {
+        var content = Buffer.Buffer<Nat8>(0);
+        for (chunk in chunks.vals()) {
+          for (byte in Blob.toArray(chunk.data).vals()) {
+            content.add(byte);
+          };
+        };
+        ?Buffer.toArray(content)
+      };
+    }
+  };
+
   system func preupgrade() {
     fileInfoEntries := Iter.toArray(fileInfos.entries());
     

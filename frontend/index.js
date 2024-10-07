@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const progressBar = document.getElementById('progressBar');
   const progressBarContainer = document.getElementById('progressBarContainer');
   const uploadStatus = document.getElementById('uploadStatus');
+  const fileContentDisplay = document.getElementById('fileContentDisplay');
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
@@ -69,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       uploadStatus.textContent = 'File uploaded successfully';
       await updateFileList();
+      await displayFileContent(file.name);
     } catch (error) {
       console.error('Upload failed:', error);
       uploadStatus.textContent = 'Upload failed: ' + error.message;
@@ -127,6 +129,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         downloadButton.textContent = 'Download';
         downloadButton.onclick = () => downloadFile(fileName);
         
+        const viewButton = document.createElement('button');
+        viewButton.textContent = 'View';
+        viewButton.onclick = () => displayFileContent(fileName);
+        
         const debugButton = document.createElement('button');
         debugButton.textContent = 'Debug';
         debugButton.onclick = async () => {
@@ -142,6 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         li.appendChild(deleteButton);
         li.appendChild(downloadButton);
+        li.appendChild(viewButton);
         li.appendChild(debugButton);
         fileList.appendChild(li);
       }
@@ -237,6 +244,44 @@ document.addEventListener('DOMContentLoaded', async () => {
       uploadStatus.classList.add('error');
     } finally {
       progressBarContainer.style.display = 'none';
+    }
+  }
+
+  async function displayFileContent(fileName) {
+    try {
+      const fileInfo = await backend.getFileInfo(fileName);
+      if (!fileInfo) {
+        throw new Error('File not found');
+      }
+
+      const content = await backend.getFileContent(fileName);
+      if (!content) {
+        throw new Error('Failed to retrieve file content');
+      }
+
+      const blob = new Blob([new Uint8Array(content)], { type: fileInfo.contentType });
+      const url = URL.createObjectURL(blob);
+
+      fileContentDisplay.innerHTML = '';
+
+      if (fileInfo.contentType.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.maxWidth = '100%';
+        fileContentDisplay.appendChild(img);
+      } else if (fileInfo.contentType.startsWith('text/') || fileInfo.contentType === 'application/json') {
+        const text = await blob.text();
+        const pre = document.createElement('pre');
+        pre.textContent = text;
+        fileContentDisplay.appendChild(pre);
+      } else {
+        fileContentDisplay.textContent = 'File content cannot be displayed. Use the download button to access the file.';
+      }
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to display file content:', error);
+      fileContentDisplay.textContent = 'Failed to display file content: ' + error.message;
     }
   }
 

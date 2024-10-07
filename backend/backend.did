@@ -9,6 +9,7 @@ service : {
   debugFileChunks: (text) -> (text) query;
   deleteFile: (text) -> ();
   getFileChunk: (text, nat64) -> (opt vec nat8) query;
+  getFileContent: (text) -> (opt vec nat8) query;
   getFileInfo: (text) -> (opt FileInfo) query;
   listFiles: () -> (vec text) query;
   uploadFileChunk: (text, text, nat64, nat64, nat64, vec nat8) -> (text);

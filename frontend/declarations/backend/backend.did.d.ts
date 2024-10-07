@@ -12,6 +12,7 @@ export interface _SERVICE {
   'debugFileChunks' : ActorMethod<[string], string>,
   'deleteFile' : ActorMethod<[string], undefined>,
   'getFileChunk' : ActorMethod<[string, bigint], [] | [Uint8Array | number[]]>,
+  'getFileContent' : ActorMethod<[string], [] | [Uint8Array | number[]]>,
   'getFileInfo' : ActorMethod<[string], [] | [FileInfo]>,
   'listFiles' : ActorMethod<[], Array<string>>,
   'uploadFileChunk' : ActorMethod<
