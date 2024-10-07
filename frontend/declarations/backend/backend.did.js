@@ -6,6 +6,7 @@ export const idlFactory = ({ IDL }) => {
     'chunkCount' : IDL.Nat64,
   });
   return IDL.Service({
+    'deleteFile' : IDL.Func([IDL.Text], [], []),
     'getFileChunk' : IDL.Func(
         [IDL.Text, IDL.Nat64],
         [IDL.Opt(IDL.Vec(IDL.Nat8))],

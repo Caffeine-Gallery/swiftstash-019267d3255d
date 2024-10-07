@@ -95,6 +95,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       for (const fileName of files) {
         const li = document.createElement('li');
         li.textContent = fileName;
+        
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.onclick = async () => {
+          if (confirm(`Are you sure you want to delete ${fileName}?`)) {
+            try {
+              await backend.deleteFile(fileName);
+              li.remove();
+              uploadStatus.textContent = `${fileName} deleted successfully`;
+              uploadStatus.classList.remove('error');
+            } catch (error) {
+              console.error('Delete failed:', error);
+              uploadStatus.textContent = 'Delete failed: ' + error.message;
+              uploadStatus.classList.add('error');
+            }
+          }
+        };
+        
+        li.appendChild(deleteButton);
         fileList.appendChild(li);
       }
     } catch (error) {

@@ -107,6 +107,20 @@ actor {
     Iter.toArray(fileInfos.keys())
   };
 
+  public func deleteFile(name: Text) : async () {
+    switch (fileInfos.get(name)) {
+      case (?_) {
+        fileInfos.delete(name);
+        fileChunks.delete(name);
+        Debug.print("File deleted: " # name);
+      };
+      case (null) {
+        Debug.print("File not found for deletion: " # name);
+        throw Error.reject("File not found");
+      };
+    };
+  };
+
   system func preupgrade() {
     fileInfoEntries := Iter.toArray(fileInfos.entries());
     fileChunkEntries := Iter.toArray(fileChunks.entries());
