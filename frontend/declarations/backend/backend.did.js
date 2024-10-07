@@ -7,7 +7,11 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     'getFile' : IDL.Func([IDL.Text], [IDL.Opt(File)], ['query']),
     'listFiles' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
-    'uploadFile' : IDL.Func([IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)], [], []),
+    'uploadFileChunk' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8), IDL.Nat, IDL.Nat],
+        [IDL.Nat],
+        [],
+      ),
   });
 };
 export const init = ({ IDL }) => { return []; };

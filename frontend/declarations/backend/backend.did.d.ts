@@ -10,9 +10,9 @@ export interface File {
 export interface _SERVICE {
   'getFile' : ActorMethod<[string], [] | [File]>,
   'listFiles' : ActorMethod<[], Array<string>>,
-  'uploadFile' : ActorMethod<
-    [string, string, Uint8Array | number[]],
-    undefined
+  'uploadFileChunk' : ActorMethod<
+    [string, string, Uint8Array | number[], bigint, bigint],
+    bigint
   >,
 }
 export declare const idlFactory: IDL.InterfaceFactory;

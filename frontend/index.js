@@ -4,20 +4,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fileInput = document.getElementById('fileInput');
   const uploadButton = document.getElementById('uploadButton');
   const fileList = document.getElementById('fileList');
+  const progressBar = document.getElementById('progressBar');
+  const progressBarContainer = document.getElementById('progressBarContainer');
 
   uploadButton.addEventListener('click', async () => {
     const file = fileInput.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const arrayBuffer = e.target.result;
-        const blob = new Blob([new Uint8Array(arrayBuffer)]);
-        await backend.uploadFile(file.name, file.type, blob);
-        await updateFileList();
-      };
-      reader.readAsArrayBuffer(file);
+      progressBarContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      await uploadFileInChunks(file);
+      await updateFileList();
     }
   });
+
+  async function uploadFileInChunks(file) {
+    const chunkSize = 500 * 1024; // 500KB chunks
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    let chunkIndex = 0;
+
+    for (let start = 0; start < file.size; start += chunkSize) {
+      const chunk = file.slice(start, start + chunkSize);
+      const arrayBuffer = await chunk.arrayBuffer();
+      const blob = new Blob([new Uint8Array(arrayBuffer)]);
+      
+      chunkIndex = await backend.uploadFileChunk(file.name, file.type, blob, totalChunks, chunkIndex);
+      
+      const progress = (chunkIndex / totalChunks) * 100;
+      progressBar.style.width = `${progress}%`;
+    }
+  }
 
   async function updateFileList() {
     const files = await backend.listFiles();

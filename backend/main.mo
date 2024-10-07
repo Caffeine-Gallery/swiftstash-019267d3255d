@@ -23,14 +23,22 @@ actor {
   // Create a HashMap to store files
   var files = HashMap.HashMap<Text, File>(0, Text.equal, Text.hash);
 
-  // Function to upload a file
-  public func uploadFile(name: Text, content_type: Text, data: Blob) : async () {
+  // Function to upload a file chunk
+  public func uploadFileChunk(name: Text, content_type: Text, chunk: Blob, total_chunks: Nat, chunk_index: Nat) : async Nat {
+    let existing_file = files.get(name);
+    let updated_data = switch (existing_file) {
+      case (null) chunk;
+      case (?file) Blob.fromArray(Array.append(Blob.toArray(file.data), Blob.toArray(chunk)));
+    };
+
     let file : File = {
       name = name;
       content_type = content_type;
-      data = data;
+      data = updated_data;
     };
     files.put(name, file);
+
+    chunk_index + 1
   };
 
   // Function to retrieve a file
