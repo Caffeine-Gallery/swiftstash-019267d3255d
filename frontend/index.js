@@ -142,17 +142,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const totalChunks = Number(fileInfo.chunkCount);
       const chunks = [];
+      let totalSize = 0;
 
       for (let i = 0; i < totalChunks; i++) {
         const chunkData = await backend.getFileChunk(fileName, BigInt(i));
         if (!chunkData) {
-          throw new Error(`Failed to download chunk ${i}`);
+          console.error(`Chunk ${i} is null or undefined`);
+          continue;
         }
-        chunks.push(new Uint8Array(chunkData));
+        const chunk = new Uint8Array(chunkData);
+        if (chunk.length === 0) {
+          console.error(`Chunk ${i} is empty`);
+          continue;
+        }
+        chunks.push(chunk);
+        totalSize += chunk.length;
         updateProgressBar((i + 1) / totalChunks * 100);
       }
 
+      if (chunks.length === 0 || totalSize === 0) {
+        throw new Error('No valid chunks were downloaded');
+      }
+
       const blob = new Blob(chunks, { type: fileInfo.contentType });
+      if (blob.size === 0) {
+        throw new Error('Created blob is empty');
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

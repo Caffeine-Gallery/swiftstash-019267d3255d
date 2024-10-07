@@ -90,11 +90,13 @@ actor {
         let index = Nat64.toNat(chunkIndex);
         if (index < chunks.size()) {
           let chunkData = chunks[index].data;
-          if (chunkData.size() == 0) {
+          if (Blob.toArray(chunkData).size() == 0) {
             Debug.print("Warning: Empty chunk detected for file " # name # " at index " # Nat64.toText(chunkIndex));
-          };
-          Debug.print("Returning chunk " # Nat64.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkData.size()));
-          ?chunkData
+            null
+          } else {
+            Debug.print("Returning chunk " # Nat64.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(Blob.toArray(chunkData).size()));
+            ?chunkData
+          }
         } else {
           Debug.print("Chunk index out of range for file " # name);
           null
