@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadButton = document.getElementById('uploadButton');
   const fileList = document.getElementById('fileList');
   const status = document.getElementById('status');
+  const progressBar = document.getElementById('progressBar');
+  const progressBarContainer = document.getElementById('progressBarContainer');
 
   initIndexedDB();
 
@@ -26,14 +28,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
+      progressBarContainer.style.display = 'block';
       const content = await readFileAsArrayBuffer(file);
       await saveFileLocally(file.name, file.type, content);
-      const result = await backend.uploadFile(file.name, file.type, Array.from(new Uint8Array(content)));
+      const result = await uploadFileWithProgress(file.name, file.type, new Uint8Array(content));
       updateStatus(result, 'success');
       updateFileList();
     } catch (error) {
       updateStatus('Upload failed: ' + error.message, 'error');
+    } finally {
+      progressBarContainer.style.display = 'none';
+      progressBar.style.width = '0%';
     }
+  }
+
+  async function uploadFileWithProgress(name, contentType, content) {
+    const chunkSize = 1024 * 1024; // 1MB chunks
+    const totalChunks = Math.ceil(content.length / chunkSize);
+    let uploadedChunks = 0;
+
+    for (let i = 0; i < content.length; i += chunkSize) {
+      const chunk = content.slice(i, i + chunkSize);
+      await backend.uploadFile(name, contentType, Array.from(chunk));
+      uploadedChunks++;
+      const progress = (uploadedChunks / totalChunks) * 100;
+      progressBar.style.width = `${progress}%`;
+    }
+
+    return "Success: File uploaded";
   }
 
   function updateFileInputLabel() {
@@ -59,6 +81,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const li = document.createElement('li');
     li.textContent = fileName;
     
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+    
     const downloadButton = createButton('Download', () => downloadFile(fileName));
     const deleteButton = createButton('Delete', async () => {
       await backend.deleteFile(fileName);
@@ -66,8 +91,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateFileList();
     });
     
-    li.appendChild(downloadButton);
-    li.appendChild(deleteButton);
+    buttonContainer.appendChild(downloadButton);
+    buttonContainer.appendChild(deleteButton);
+    li.appendChild(buttonContainer);
     return li;
   }
 

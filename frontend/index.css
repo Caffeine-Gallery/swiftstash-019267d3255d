@@ -1,9 +1,10 @@
 :root {
   --primary-color: #3498db;
   --secondary-color: #2ecc71;
-  --background-color: #f4f4f4;
-  --text-color: #333;
+  --background-color: #1a1a1a;
+  --text-color: #f4f4f4;
   --error-color: #e74c3c;
+  --item-background: #2c2c2c;
 }
 
 body {
@@ -31,17 +32,18 @@ h1, h2 {
 }
 
 .upload-section, .file-list-section {
-  background-color: white;
+  background-color: var(--item-background);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .file-input-wrapper {
   position: relative;
   overflow: hidden;
   display: inline-block;
+  margin-bottom: 10px;
 }
 
 .file-input {
@@ -56,7 +58,7 @@ h1, h2 {
   display: inline-block;
   padding: 8px 20px;
   background-color: var(--secondary-color);
-  color: white;
+  color: var(--text-color);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -71,7 +73,7 @@ h1, h2 {
   display: inline-block;
   padding: 10px 20px;
   background-color: var(--primary-color);
-  color: white;
+  color: var(--text-color);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -97,11 +99,16 @@ h1, h2 {
   justify-content: space-between;
   align-items: center;
   padding: 10px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #444;
 }
 
 .file-list li:last-child {
   border-bottom: none;
+}
+
+.button-container {
+  display: flex;
+  gap: 10px;
 }
 
 .status {
@@ -113,12 +120,28 @@ h1, h2 {
 
 .status.error {
   background-color: var(--error-color);
-  color: white;
+  color: var(--text-color);
 }
 
 .status.success {
   background-color: var(--secondary-color);
-  color: white;
+  color: var(--text-color);
+}
+
+.progress-bar-container {
+  width: 100%;
+  background-color: #444;
+  border-radius: 4px;
+  margin-top: 10px;
+  display: none;
+}
+
+.progress-bar {
+  width: 0;
+  height: 20px;
+  background-color: var(--secondary-color);
+  border-radius: 4px;
+  transition: width 0.3s ease-in-out;
 }
 
 @media (max-width: 600px) {
@@ -130,5 +153,16 @@ h1, h2 {
     display: block;
     width: 100%;
     margin-bottom: 10px;
+  }
+
+  .file-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .button-container {
+    margin-top: 10px;
+    width: 100%;
+    justify-content: space-between;
   }
 }
