@@ -25,11 +25,19 @@ actor {
   // Create a HashMap to store files
   var files = HashMap.HashMap<Text, File>(0, Text.equal, Text.hash);
 
+  // Maximum file size (10MB)
+  let MAX_FILE_SIZE : Nat = 10 * 1024 * 1024;
+
   // Function to upload a file
   public func uploadFile(name: Text, content_type: Text, data: [Nat8]) : async Text {
     if (data.size() == 0) {
       Debug.print("Error: Empty file data received");
       return "Error: Empty file data";
+    };
+
+    if (data.size() > MAX_FILE_SIZE) {
+      Debug.print("Error: File size exceeds maximum limit");
+      return "Error: File size exceeds 10MB limit";
     };
 
     let file : File = {

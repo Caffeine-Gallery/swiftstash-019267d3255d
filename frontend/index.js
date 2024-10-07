@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const progressBarContainer = document.getElementById('progressBarContainer');
   const uploadStatus = document.getElementById('uploadStatus');
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
       uploadStatus.textContent = 'Error: Please select a file first';
@@ -17,6 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const file = fileInput.files[0];
+    if (file.size > MAX_FILE_SIZE) {
+      uploadStatus.textContent = 'Error: File size exceeds 10MB limit';
+      uploadStatus.classList.add('error');
+      return;
+    }
+
     try {
       progressBarContainer.style.display = 'block';
       progressBar.style.width = '0%';
@@ -78,40 +86,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const file = await backend.getFile(fileName);
       if (file && file.length > 0) {
         const fileData = file[0];
-        console.log('File data:', fileData);
+        console.log('File data received, size:', fileData.data.length);
 
-        // Decode the file data
-        const decodedData = new Uint8Array(fileData.data);
-        console.log('Decoded data length:', decodedData.length);
+        // Use a worker to handle large file processing
+        const worker = new Worker(new URL('./fileWorker.js', import.meta.url), { type: 'module' });
+        
+        worker.onmessage = (event) => {
+          const { type, data } = event.data;
+          
+          if (type === 'error') {
+            console.error('Worker error:', data);
+            alert('Failed to process file: ' + data);
+          } else if (type === 'result') {
+            displayFileContent(fileData.content_type, data);
+          }
+        };
 
-        if (fileData.content_type.startsWith('image/')) {
-          // For images, use a data URL instead of a Blob URL
-          const base64 = btoa(String.fromCharCode.apply(null, decodedData));
-          const dataUrl = `data:${fileData.content_type};base64,${base64}`;
-          console.log('Data URL created');
-
-          const img = document.createElement('img');
-          img.src = dataUrl;
-          img.onerror = (e) => {
-            console.error('Failed to load image:', e);
-            alert('Failed to load image. Please check the console for more details.');
-          };
-          img.onload = () => console.log('Image loaded successfully');
-          displayInModal(img);
-        } else if (fileData.content_type.startsWith('text/')) {
-          const text = new TextDecoder().decode(decodedData);
-          const pre = document.createElement('pre');
-          pre.textContent = text;
-          displayInModal(pre);
-        } else {
-          const blob = new Blob([decodedData], { type: fileData.content_type });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = fileData.name;
-          link.textContent = `Download ${fileData.name}`;
-          displayInModal(link);
-        }
+        worker.postMessage({ fileData });
       } else {
         console.error('File not found or invalid file data');
         alert('File not found or invalid file data');
@@ -119,6 +110,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Failed to view file:', error);
       alert('Failed to view file: ' + error.message);
+    }
+  }
+
+  function displayFileContent(contentType, data) {
+    if (contentType.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.src = data;
+      img.onerror = (e) => {
+        console.error('Failed to load image:', e);
+        alert('Failed to load image. Please check the console for more details.');
+      };
+      img.onload = () => console.log('Image loaded successfully');
+      displayInModal(img);
+    } else if (contentType.startsWith('text/')) {
+      const pre = document.createElement('pre');
+      pre.textContent = data;
+      displayInModal(pre);
+    } else {
+      const link = document.createElement('a');
+      link.href = data;
+      link.download = 'download';
+      link.textContent = `Download file`;
+      displayInModal(link);
     }
   }
 
