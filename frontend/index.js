@@ -59,12 +59,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!fileInfo) throw new Error('File not found');
 
       const content = await backend.getFileContent(fileName);
-      if (!content) throw new Error('Failed to retrieve file content');
+      if (!content || content.length === 0) throw new Error('Failed to retrieve file content or content is empty');
 
       console.log(`Downloading file: ${fileName}, size: ${content.length} bytes`);
 
       const uint8Array = new Uint8Array(content);
       const blob = new Blob([uint8Array], { type: fileInfo.contentType });
+      
+      if (blob.size === 0) throw new Error('Created blob is empty');
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -73,9 +76,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      status.textContent = `File ${fileName} downloaded successfully`;
+      status.textContent = `File ${fileName} downloaded successfully (${blob.size} bytes)`;
     } catch (error) {
       status.textContent = 'Download failed: ' + error.message;
+      console.error('Download error:', error);
     }
   }
 

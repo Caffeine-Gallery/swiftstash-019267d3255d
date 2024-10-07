@@ -15,7 +15,7 @@ actor {
   type FileInfo = {
     name: Text;
     contentType: Text;
-    content: Blob;
+    content: [Nat8];
   };
 
   var files = HashMap.HashMap<Text, FileInfo>(0, Text.equal, Text.hash);
@@ -24,14 +24,18 @@ actor {
     if (content.size() == 0) {
       return "Error: Cannot upload empty file";
     };
-    let blob = Blob.fromArray(content);
-    files.put(name, { name; contentType; content = blob });
+    files.put(name, { name; contentType; content });
     Debug.print("File uploaded: " # name # ", size: " # Nat.toText(content.size()) # " bytes");
     "Success: File uploaded"
   };
 
   public query func getFileInfo(name: Text) : async ?FileInfo {
-    files.get(name)
+    switch (files.get(name)) {
+      case (?file) {
+        ?{ name = file.name; contentType = file.contentType; content = [] }
+      };
+      case (null) { null };
+    }
   };
 
   public query func listFiles() : async [Text] {
@@ -43,7 +47,7 @@ actor {
     Debug.print("File deleted: " # name);
   };
 
-  public query func getFileContent(name: Text) : async ?Blob {
+  public query func getFileContent(name: Text) : async ?[Nat8] {
     switch (files.get(name)) {
       case (?file) { 
         Debug.print("Retrieving file: " # name # ", size: " # Nat.toText(file.content.size()) # " bytes");
