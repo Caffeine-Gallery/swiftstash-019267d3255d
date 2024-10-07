@@ -56,7 +56,10 @@ actor {
           chunkCount = info.chunkCount;
         }
       };
-      case (null) { null };
+      case (null) { 
+        Debug.print("File info not found for: " # name);
+        null 
+      };
     }
   };
 
@@ -68,8 +71,9 @@ actor {
       };
       case (?chunks) {
         if (chunkIndex < chunks.size()) {
-          Debug.print("Returning chunk " # Nat.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunks[chunkIndex].data.size()));
-          ?chunks[chunkIndex].data
+          let chunkData = chunks[chunkIndex].data;
+          Debug.print("Returning chunk " # Nat.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkData.size()));
+          ?chunkData
         } else {
           Debug.print("Chunk index out of range for file " # name);
           null

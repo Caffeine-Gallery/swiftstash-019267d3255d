@@ -1,5 +1,6 @@
 import { backend } from 'declarations/backend';
 import { IDL } from "@dfinity/candid";
+import { Principal } from "@dfinity/principal";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const fileInput = document.getElementById('fileInput');
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+  const MAX_RETRIES = 3;
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -112,23 +114,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function downloadFileInChunks(fileName, totalChunks, contentType) {
     updateProgressBar(0);
     try {
-      const chunkPromises = Array.from({ length: totalChunks }, (_, i) => 
-        backend.getFileChunk(fileName, i)
-      );
-      const chunks = await Promise.all(chunkPromises);
-      updateProgressBar(100);
-
-      const validChunks = chunks.filter(chunk => chunk !== null);
-      if (validChunks.length !== totalChunks) {
-        console.error(`Expected ${totalChunks} chunks, but received ${validChunks.length} valid chunks`);
-        return null;
+      const chunks = [];
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = await retryDownloadChunk(fileName, i);
+        if (chunk) {
+          chunks.push(chunk);
+        } else {
+          console.error(`Failed to download chunk ${i} after multiple retries`);
+          return null;
+        }
+        updateProgressBar((i + 1) / totalChunks * 100);
       }
 
-      const concatenatedChunks = validChunks.reduce((acc, chunk) => {
-        const chunkArray = new Uint8Array(chunk);
-        const newArray = new Uint8Array(acc.length + chunkArray.length);
+      const concatenatedChunks = chunks.reduce((acc, chunk) => {
+        const newArray = new Uint8Array(acc.length + chunk.length);
         newArray.set(acc);
-        newArray.set(chunkArray, acc.length);
+        newArray.set(chunk, acc.length);
         return newArray;
       }, new Uint8Array());
 
@@ -138,6 +139,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error downloading file chunks:', error);
       return null;
     }
+  }
+
+  async function retryDownloadChunk(fileName, chunkIndex, retries = 0) {
+    try {
+      const chunk = await backend.getFileChunk(fileName, chunkIndex);
+      if (chunk) {
+        return new Uint8Array(chunk);
+      }
+    } catch (error) {
+      console.error(`Error downloading chunk ${chunkIndex}:`, error);
+    }
+
+    if (retries < MAX_RETRIES) {
+      console.log(`Retrying chunk ${chunkIndex}, attempt ${retries + 1}`);
+      return retryDownloadChunk(fileName, chunkIndex, retries + 1);
+    }
+
+    return null;
   }
 
   function updateProgressBar(progress) {
