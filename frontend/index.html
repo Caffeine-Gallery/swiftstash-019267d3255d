@@ -8,12 +8,26 @@
 </head>
 <body>
     <div class="container">
-        <h1>File Manager</h1>
-        <input type="file" id="fileInput">
-        <button id="uploadButton">Upload</button>
-        <p id="status"></p>
-        <h2>Files</h2>
-        <ul id="fileList"></ul>
+        <header>
+            <h1>File Manager</h1>
+        </header>
+        <main>
+            <section class="upload-section">
+                <h2>Upload File</h2>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" class="file-input">
+                    <label for="fileInput" class="file-input-label">Choose a file</label>
+                </div>
+                <button id="uploadButton" class="btn">Upload</button>
+            </section>
+            <section class="file-list-section">
+                <h2>Files</h2>
+                <ul id="fileList" class="file-list"></ul>
+            </section>
+        </main>
+        <footer>
+            <p id="status" class="status"></p>
+        </footer>
     </div>
     <script type="module" src="index.js"></script>
 </body>
