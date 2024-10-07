@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
-  const MAX_RETRIES = 10;
+  const MAX_RETRIES = 15;
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error(`Error downloading chunk ${chunkIndex}:`, error);
       if (retries < MAX_RETRIES) {
         console.log(`Retrying chunk ${chunkIndex}, attempt ${retries + 1}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retries))); // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, retries))); // Exponential backoff
         return retryDownloadChunk(fileName, chunkIndex, retries + 1);
       }
       throw error;
