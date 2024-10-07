@@ -1,0 +1,11 @@
+type File = 
+ record {
+   content_type: text;
+   data: blob;
+   name: text;
+ };
+service : {
+  getFile: (text) -> (opt File) query;
+  listFiles: () -> (vec text) query;
+  uploadFile: (text, text, blob) -> ();
+}
