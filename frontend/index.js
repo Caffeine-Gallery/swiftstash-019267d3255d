@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
-  const MAX_RETRIES = 5;
+  const MAX_RETRIES = 10;
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -128,19 +128,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const chunks = [];
       let totalDownloadedSize = 0;
+      let successfulChunks = 0;
       for (let i = 0; i < fileInfo.chunkCount; i++) {
-        const chunk = await retryDownloadChunk(fileInfo.name, i);
-        if (chunk && chunk.length > 0) {
-          chunks.push(chunk);
-          totalDownloadedSize += chunk.length;
-        } else {
-          console.error(`Empty or null chunk received for index ${i}`);
+        try {
+          const chunk = await retryDownloadChunk(fileInfo.name, i);
+          if (chunk && chunk.length > 0) {
+            chunks.push(chunk);
+            totalDownloadedSize += chunk.length;
+            successfulChunks++;
+          } else {
+            console.warn(`Empty chunk received for index ${i}`);
+          }
+        } catch (error) {
+          console.error(`Failed to download chunk ${i}:`, error);
         }
         updateProgressBar((i + 1) / fileInfo.chunkCount * 100);
       }
 
-      if (chunks.length === 0) {
+      if (successfulChunks === 0) {
         throw new Error('No valid chunks were downloaded');
+      }
+
+      if (successfulChunks < fileInfo.chunkCount) {
+        console.warn(`Only ${successfulChunks} out of ${fileInfo.chunkCount} chunks were successfully downloaded`);
       }
 
       const concatenatedChunks = new Uint8Array(totalDownloadedSize);
