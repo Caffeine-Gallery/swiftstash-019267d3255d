@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }, new Uint8Array());
 
       console.log(`Assembled file size: ${concatenatedChunks.length} bytes`);
-      return new Blob([concatenatedChunks], { type: fileInfo.contentType });
+      return new Blob([concatenatedChunks], { type: fileInfo.contentType || 'application/octet-stream' });
     } catch (error) {
       console.error('Error downloading file chunks:', error);
       return null;
@@ -174,7 +174,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Displaying file content. File info:', fileInfo, 'Blob size:', fileData.size);
     const url = URL.createObjectURL(fileData);
 
-    if (fileInfo.contentType.startsWith('image/')) {
+    const contentType = fileInfo.contentType || 'application/octet-stream';
+
+    if (contentType.startsWith('image/')) {
       const img = document.createElement('img');
       img.src = url;
       img.onerror = (e) => {
@@ -183,7 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
       img.onload = () => console.log('Image loaded successfully');
       displayInModal(img, fileInfo, fileData.size);
-    } else if (fileInfo.contentType.startsWith('text/')) {
+    } else if (contentType.startsWith('text/')) {
       fetch(url)
         .then(response => response.text())
         .then(text => {
@@ -221,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeBtn.onclick = () => document.body.removeChild(modal);
 
     const fileInfoText = document.createElement('p');
-    fileInfoText.textContent = `File: ${fileInfo.name} | Type: ${fileInfo.contentType} | Size: ${formatFileSize(actualSize)} (Stored size: ${formatFileSize(fileInfo.size)})`;
+    fileInfoText.textContent = `File: ${fileInfo.name || 'Unknown'} | Type: ${fileInfo.contentType || 'Unknown'} | Size: ${formatFileSize(actualSize)} (Stored size: ${formatFileSize(fileInfo.size || 0)})`;
     
     modalContent.appendChild(closeBtn);
     modalContent.appendChild(fileInfoText);
