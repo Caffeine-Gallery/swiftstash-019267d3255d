@@ -1,14 +1,15 @@
 :root {
-  --primary-color: #3498db;
-  --secondary-color: #2ecc71;
-  --background-color: #1a1a1a;
-  --text-color: #f4f4f4;
-  --error-color: #e74c3c;
-  --item-background: #2c2c2c;
+  --primary-color: #4a90e2;
+  --secondary-color: #50e3c2;
+  --background-color: #f5f7fa;
+  --text-color: #333;
+  --error-color: #ff6b6b;
+  --item-background: #ffffff;
+  --shadow-color: rgba(0, 0, 0, 0.1);
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Roboto', sans-serif;
   background-color: var(--background-color);
   color: var(--text-color);
   line-height: 1.6;
@@ -19,37 +20,51 @@ body {
 .container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 40px 20px;
 }
 
 header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
 }
 
-h1, h2 {
+h1 {
   color: var(--primary-color);
+  font-size: 2.5em;
+  font-weight: 700;
+}
+
+h2 {
+  color: var(--primary-color);
+  font-size: 1.8em;
+  font-weight: 400;
+  margin-bottom: 20px;
 }
 
 nav {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
 }
 
 .upload-section, .file-list-section {
   background-color: var(--item-background);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px var(--shadow-color);
+  transition: box-shadow 0.3s ease;
+}
+
+.upload-section:hover, .file-list-section:hover {
+  box-shadow: 0 6px 8px var(--shadow-color);
 }
 
 .file-upload-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
 .file-input-wrapper {
@@ -64,40 +79,44 @@ nav {
   left: 0;
   top: 0;
   opacity: 0;
+  cursor: pointer;
 }
 
 .file-input-label {
   display: inline-block;
-  padding: 8px 20px;
+  padding: 10px 20px;
   background-color: var(--secondary-color);
-  color: var(--text-color);
+  color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s, transform 0.1s;
 }
 
 .file-input-label:hover {
-  background-color: #27ae60;
+  background-color: #3ad1af;
+  transform: translateY(-2px);
 }
 
 .btn {
   display: inline-block;
   padding: 10px 20px;
   background-color: var(--primary-color);
-  color: var(--text-color);
+  color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s, transform 0.1s;
+  font-weight: 500;
 }
 
 .btn:hover {
-  background-color: #2980b9;
+  background-color: #3a7bc8;
+  transform: translateY(-2px);
 }
 
 .btn-small {
-  padding: 5px 10px;
+  padding: 8px 15px;
   font-size: 0.9em;
 }
 
@@ -110,57 +129,61 @@ nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  border-bottom: 1px solid #444;
+  padding: 15px;
+  margin-bottom: 10px;
+  background-color: var(--item-background);
+  border-radius: 5px;
+  box-shadow: 0 2px 4px var(--shadow-color);
+  transition: box-shadow 0.3s ease;
 }
 
-.file-list li:last-child {
-  border-bottom: none;
+.file-list li:hover {
+  box-shadow: 0 4px 6px var(--shadow-color);
 }
 
 .button-container {
   display: flex;
   gap: 10px;
-  justify-content: center;
-  align-items: center;
 }
 
 .status {
   text-align: center;
-  padding: 10px;
+  padding: 15px;
   margin-top: 20px;
-  border-radius: 4px;
+  border-radius: 5px;
+  font-weight: 500;
+  transition: opacity 0.3s ease;
 }
 
 .status.error {
   background-color: var(--error-color);
-  color: var(--text-color);
+  color: white;
 }
 
 .status.success {
   background-color: var(--secondary-color);
-  color: var(--text-color);
+  color: white;
 }
 
 .progress-bar-container {
   width: 100%;
-  background-color: #444;
-  border-radius: 4px;
-  margin-top: 10px;
-  display: none;
+  background-color: #e0e0e0;
+  border-radius: 10px;
+  margin-top: 20px;
+  overflow: hidden;
+  height: 8px;
 }
 
 .progress-bar {
   width: 0;
-  height: 20px;
+  height: 100%;
   background-color: var(--secondary-color);
-  border-radius: 4px;
   transition: width 0.3s ease-in-out;
 }
 
 @media (max-width: 600px) {
   .container {
-    padding: 10px;
+    padding: 20px 10px;
   }
 
   .file-upload-container {
@@ -181,5 +204,15 @@ nav {
   .button-container {
     margin-top: 10px;
     width: 100%;
+    justify-content: space-between;
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
 }

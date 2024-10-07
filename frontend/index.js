@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loginButton.style.display = 'none';
     logoutButton.style.display = 'inline-block';
     mainContent.style.display = 'block';
+    mainContent.classList.add('fade-in');
     updateFileList();
   }
 
@@ -95,7 +96,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function updateStatus(message, type) {
     status.textContent = message;
-    status.className = `status ${type}`;
+    status.className = `status ${type} fade-in`;
+    setTimeout(() => {
+      status.style.opacity = '0';
+    }, 3000);
   }
 
   async function updateFileList() {
@@ -103,6 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fileList.innerHTML = '';
     files.forEach(file => {
       const li = createFileListItem(file.name);
+      li.classList.add('fade-in');
       fileList.appendChild(li);
     });
   }
