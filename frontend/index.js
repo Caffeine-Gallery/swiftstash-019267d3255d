@@ -97,7 +97,7 @@ async function createAuthenticatedActor() {
 async function updateFileList() {
     try {
         const authenticatedBackend = await createAuthenticatedActor();
-        // Changed from getFiles to listFiles
+        // Assuming listFiles doesn't require any arguments
         const files = await authenticatedBackend.listFiles();
         updateState({ files });
     } catch (error) {
