@@ -211,10 +211,14 @@ async function handleUpload() {
     try {
         const content = await readFileAsArrayBuffer(file);
         const authenticatedBackend = await createAuthenticatedActor();
-        await authenticatedBackend.uploadFile(file.name, Array.from(new Uint8Array(content)));
+        // Convert ArrayBuffer to Uint8Array
+        const uint8Array = new Uint8Array(content);
+        // Pass file name and content as separate arguments
+        await authenticatedBackend.uploadFile(file.name, uint8Array);
         updateStatus('File uploaded successfully', 'success');
         await updateFileList();
     } catch (error) {
+        console.error("Upload error:", error);
         updateStatus('Upload failed: ' + error.message, 'error');
     }
 }
