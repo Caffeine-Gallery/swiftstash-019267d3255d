@@ -88,16 +88,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       fileList.innerHTML = '';
       for (const fileName of files) {
         const li = document.createElement('li');
-        li.textContent = fileName;
-        const viewButton = document.createElement('button');
-        viewButton.textContent = 'View/Download';
-        viewButton.addEventListener('click', () => viewFile(fileName));
-        li.appendChild(viewButton);
+        const fileLink = document.createElement('a');
+        fileLink.href = `#/file/${encodeURIComponent(fileName)}`;
+        fileLink.textContent = fileName;
+        fileLink.target = '_blank';
+        li.appendChild(fileLink);
+
+        const copyLinkButton = document.createElement('button');
+        copyLinkButton.textContent = 'Copy Link';
+        copyLinkButton.addEventListener('click', () => copyLinkToClipboard(fileLink.href));
+        li.appendChild(copyLinkButton);
+
         fileList.appendChild(li);
       }
     } catch (error) {
       console.error('Failed to update file list:', error);
     }
+  }
+
+  function copyLinkToClipboard(link) {
+    navigator.clipboard.writeText(link).then(() => {
+      alert('Link copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy link: ', err);
+    });
   }
 
   async function viewFile(fileName) {
@@ -272,6 +286,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.removeChild(modal);
       }
     };
+  }
+
+  // Handle file viewing based on URL hash
+  window.addEventListener('hashchange', handleHashChange);
+  handleHashChange();
+
+  function handleHashChange() {
+    const hash = window.location.hash;
+    if (hash.startsWith('#/file/')) {
+      const fileName = decodeURIComponent(hash.slice(7));
+      viewFile(fileName);
+    }
   }
 
   await updateFileList();
