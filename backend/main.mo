@@ -80,7 +80,7 @@ actor {
     }
   };
 
-  public query func getFileChunk(name: Text, chunkIndex: Nat64) : async ?Blob {
+  public query func getFileChunk(name: Text, chunkIndex: Nat64) : async ?[Nat8] {
     switch (fileChunks.get(name)) {
       case (null) { 
         Debug.print("File not found: " # name);
@@ -90,13 +90,13 @@ actor {
         let index = Nat64.toNat(chunkIndex);
         if (index < chunks.size()) {
           let chunkData = chunks[index].data;
-          let chunkSize = Blob.toArray(chunkData).size();
-          if (chunkSize == 0) {
+          let chunkArray = Blob.toArray(chunkData);
+          if (chunkArray.size() == 0) {
             Debug.print("Warning: Empty chunk detected for file " # name # " at index " # Nat64.toText(chunkIndex));
             null
           } else {
-            Debug.print("Returning chunk " # Nat64.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkSize) # " bytes");
-            ?chunkData
+            Debug.print("Returning chunk " # Nat64.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkArray.size()) # " bytes");
+            ?chunkArray
           }
         } else {
           Debug.print("Chunk index out of range for file " # name);
