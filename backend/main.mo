@@ -57,7 +57,7 @@ actor {
       };
     };
 
-    Debug.print("Uploaded chunk " # Nat64.toText(chunkIndex) # " of " # Nat64.toText(totalChunks) # " for file " # name # " (Total size: " # Nat64.toText(totalSize) # " bytes)");
+    Debug.print("Uploaded chunk " # Nat64.toText(chunkIndex) # " of " # Nat64.toText(totalChunks) # " for file " # name # " (Chunk size: " # Nat.toText(data.size()) # " bytes)");
   };
 
   public query func getFileInfo(name: Text) : async ?FileInfo {
@@ -90,11 +90,12 @@ actor {
         let index = Nat64.toNat(chunkIndex);
         if (index < chunks.size()) {
           let chunkData = chunks[index].data;
-          if (Blob.toArray(chunkData).size() == 0) {
+          let chunkSize = Blob.toArray(chunkData).size();
+          if (chunkSize == 0) {
             Debug.print("Warning: Empty chunk detected for file " # name # " at index " # Nat64.toText(chunkIndex));
             null
           } else {
-            Debug.print("Returning chunk " # Nat64.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(Blob.toArray(chunkData).size()));
+            Debug.print("Returning chunk " # Nat64.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkSize) # " bytes");
             ?chunkData
           }
         } else {

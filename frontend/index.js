@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+  const MAX_RETRY_ATTEMPTS = 3;
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -145,9 +146,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       let totalSize = 0;
 
       for (let i = 0; i < totalChunks; i++) {
-        const chunkData = await backend.getFileChunk(fileName, BigInt(i));
+        let chunkData = null;
+        for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+          chunkData = await backend.getFileChunk(fileName, BigInt(i));
+          if (chunkData) break;
+          console.warn(`Retry ${attempt + 1} for chunk ${i}`);
+        }
         if (!chunkData) {
-          console.error(`Chunk ${i} is null or undefined`);
+          console.error(`Failed to download chunk ${i} after ${MAX_RETRY_ATTEMPTS} attempts`);
           continue;
         }
         const chunk = new Uint8Array(chunkData);
@@ -164,9 +170,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('No valid chunks were downloaded');
       }
 
+      if (chunks.length !== totalChunks) {
+        console.warn(`Expected ${totalChunks} chunks, but received ${chunks.length}`);
+      }
+
       const blob = new Blob(chunks, { type: fileInfo.contentType });
       if (blob.size === 0) {
         throw new Error('Created blob is empty');
+      }
+
+      if (blob.size !== Number(fileInfo.size)) {
+        console.warn(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${blob.size}`);
       }
 
       const url = URL.createObjectURL(blob);
