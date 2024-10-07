@@ -8,6 +8,7 @@ import Debug "mo:base/Debug";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
+import Nat64 "mo:base/Nat64";
 import Option "mo:base/Option";
 import Text "mo:base/Text";
 import Error "mo:base/Error";
@@ -16,8 +17,8 @@ actor {
   type FileInfo = {
     name: Text;
     contentType: Text;
-    chunkCount: Nat;
-    size: Nat;
+    chunkCount: Nat64;
+    size: Nat64;
   };
 
   type FileChunk = {
@@ -30,7 +31,7 @@ actor {
   var fileInfos = HashMap.HashMap<Text, FileInfo>(0, Text.equal, Text.hash);
   var fileChunks = HashMap.HashMap<Text, [FileChunk]>(0, Text.equal, Text.hash);
 
-  public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat, chunkIndex: Nat, totalChunks: Nat, data: [Nat8]) : async () {
+  public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat64, chunkIndex: Nat64, totalChunks: Nat64, data: [Nat8]) : async () {
     if (data.size() == 0) {
       throw Error.reject("Cannot upload empty chunk");
     };
@@ -42,19 +43,19 @@ actor {
         if (totalSize == 0) {
           throw Error.reject("Cannot upload file with 0 bytes");
         };
-        let newChunks = Array.init<FileChunk>(totalChunks, chunk);
-        newChunks[chunkIndex] := chunk;
+        let newChunks = Array.init<FileChunk>(Nat64.toNat(totalChunks), chunk);
+        newChunks[Nat64.toNat(chunkIndex)] := chunk;
         fileChunks.put(name, Array.freeze(newChunks));
         fileInfos.put(name, { name = name; contentType = contentType; chunkCount = totalChunks; size = totalSize });
       };
       case (?existingChunks) {
         let updatedChunks = Array.thaw<FileChunk>(existingChunks);
-        updatedChunks[chunkIndex] := chunk;
+        updatedChunks[Nat64.toNat(chunkIndex)] := chunk;
         fileChunks.put(name, Array.freeze(updatedChunks));
       };
     };
 
-    Debug.print("Uploaded chunk " # Nat.toText(chunkIndex) # " of " # Nat.toText(totalChunks) # " for file " # name # " (Total size: " # Nat.toText(totalSize) # " bytes)");
+    Debug.print("Uploaded chunk " # Nat64.toText(chunkIndex) # " of " # Nat64.toText(totalChunks) # " for file " # name # " (Total size: " # Nat64.toText(totalSize) # " bytes)");
   };
 
   public query func getFileInfo(name: Text) : async ?FileInfo {
@@ -77,19 +78,20 @@ actor {
     }
   };
 
-  public query func getFileChunk(name: Text, chunkIndex: Nat) : async ?Blob {
+  public query func getFileChunk(name: Text, chunkIndex: Nat64) : async ?Blob {
     switch (fileChunks.get(name)) {
       case (null) { 
         Debug.print("File not found: " # name);
         null 
       };
       case (?chunks) {
-        if (chunkIndex < chunks.size()) {
-          let chunkData = chunks[chunkIndex].data;
+        let index = Nat64.toNat(chunkIndex);
+        if (index < chunks.size()) {
+          let chunkData = chunks[index].data;
           if (chunkData.size() == 0) {
-            Debug.print("Warning: Empty chunk detected for file " # name # " at index " # Nat.toText(chunkIndex));
+            Debug.print("Warning: Empty chunk detected for file " # name # " at index " # Nat64.toText(chunkIndex));
           };
-          Debug.print("Returning chunk " # Nat.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkData.size()));
+          Debug.print("Returning chunk " # Nat64.toText(chunkIndex) # " of file " # name # " with size " # Nat.toText(chunkData.size()));
           ?chunkData
         } else {
           Debug.print("Chunk index out of range for file " # name);

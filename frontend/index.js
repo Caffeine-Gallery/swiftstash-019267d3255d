@@ -48,8 +48,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (chunk.length === 0) {
           throw new Error('Empty chunk detected during upload');
         }
-        const serializedChunk = IDL.encode([IDL.Vec(IDL.Nat8)], [Array.from(chunk)]);
-        await backend.uploadFileChunk(file.name, file.type, file.size, i, totalChunks, serializedChunk);
+        const serializedChunk = Array.from(chunk);
+        await backend.uploadFileChunk(file.name, file.type, BigInt(file.size), BigInt(i), BigInt(totalChunks), serializedChunk);
         updateProgressBar((i + 1) / totalChunks * 100);
       }
 
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const fileInfo = await backend.getFileInfo(fileName);
       console.log('File info received:', fileInfo);
       if (fileInfo) {
-        if (fileInfo.size === 0) {
+        if (fileInfo.size === BigInt(0)) {
           throw new Error('File size is 0 bytes');
         }
         const fileData = await downloadFileInChunks(fileInfo);
@@ -129,9 +129,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const chunks = [];
       let totalDownloadedSize = 0;
       let successfulChunks = 0;
-      for (let i = 0; i < fileInfo.chunkCount; i++) {
+      for (let i = 0; i < Number(fileInfo.chunkCount); i++) {
         try {
-          const chunk = await retryDownloadChunk(fileInfo.name, i);
+          const chunk = await retryDownloadChunk(fileInfo.name, BigInt(i));
           if (chunk && chunk.length > 0) {
             chunks.push(chunk);
             totalDownloadedSize += chunk.length;
@@ -142,14 +142,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
           console.error(`Failed to download chunk ${i}:`, error);
         }
-        updateProgressBar((i + 1) / fileInfo.chunkCount * 100);
+        updateProgressBar((i + 1) / Number(fileInfo.chunkCount) * 100);
       }
 
       if (successfulChunks === 0) {
         throw new Error('No valid chunks were downloaded');
       }
 
-      if (successfulChunks < fileInfo.chunkCount) {
+      if (successfulChunks < Number(fileInfo.chunkCount)) {
         console.warn(`Only ${successfulChunks} out of ${fileInfo.chunkCount} chunks were successfully downloaded`);
       }
 
@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('Downloaded file content is empty');
       }
 
-      if (concatenatedChunks.length !== fileInfo.size) {
+      if (BigInt(concatenatedChunks.length) !== fileInfo.size) {
         console.warn(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${concatenatedChunks.length}`);
       }
 
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeBtn.onclick = () => document.body.removeChild(modal);
 
     const fileInfoText = document.createElement('p');
-    fileInfoText.textContent = `File: ${fileInfo.name || 'Unknown'} | Type: ${fileInfo.contentType || 'Unknown'} | Size: ${formatFileSize(actualSize)} (Stored size: ${formatFileSize(fileInfo.size || 0)})`;
+    fileInfoText.textContent = `File: ${fileInfo.name || 'Unknown'} | Type: ${fileInfo.contentType || 'Unknown'} | Size: ${formatFileSize(actualSize)} (Stored size: ${formatFileSize(Number(fileInfo.size) || 0)})`;
     
     modalContent.appendChild(closeBtn);
     modalContent.appendChild(fileInfoText);

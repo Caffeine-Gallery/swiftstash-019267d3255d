@@ -1,13 +1,13 @@
 type FileInfo = 
  record {
-   chunkCount: nat;
+   chunkCount: nat64;
    contentType: text;
    name: text;
-   size: nat;
+   size: nat64;
  };
 service : {
-  getFileChunk: (text, nat) -> (opt blob) query;
+  getFileChunk: (text, nat64) -> (opt blob) query;
   getFileInfo: (text) -> (opt FileInfo) query;
   listFiles: () -> (vec text) query;
-  uploadFileChunk: (text, text, nat, nat, nat, vec nat8) -> ();
+  uploadFileChunk: (text, text, nat64, nat64, nat64, vec nat8) -> ();
 }
