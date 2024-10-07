@@ -77,13 +77,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const file = await backend.getFile(fileName);
       if (file) {
-        const blob = new Blob([file[0].data], { type: file[0].content_type });
+        const fileData = file[0];
+        const blob = new Blob([new Uint8Array(fileData.data)], { type: fileData.content_type });
         const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+
+        if (fileData.content_type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = url;
+          displayInModal(img);
+        } else if (fileData.content_type.startsWith('text/')) {
+          const text = await blob.text();
+          const pre = document.createElement('pre');
+          pre.textContent = text;
+          displayInModal(pre);
+        } else {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileData.name;
+          link.textContent = `Download ${fileData.name}`;
+          displayInModal(link);
+        }
+      } else {
+        console.error('File not found');
+        alert('File not found');
       }
     } catch (error) {
       console.error('Failed to view file:', error);
+      alert('Failed to view file: ' + error.message);
     }
+  }
+
+  function displayInModal(content) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content';
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'close';
+    closeBtn.textContent = '×';
+    closeBtn.onclick = () => document.body.removeChild(modal);
+
+    modalContent.appendChild(closeBtn);
+    modalContent.appendChild(content);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    window.onclick = (event) => {
+      if (event.target === modal) {
+        document.body.removeChild(modal);
+      }
+    };
   }
 
   await updateFileList();
