@@ -8,6 +8,7 @@ import Debug "mo:base/Debug";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
+import Option "mo:base/Option";
 import Text "mo:base/Text";
 
 actor {
@@ -46,7 +47,16 @@ actor {
   };
 
   public query func getFileInfo(name: Text) : async ?FileInfo {
-    fileInfos.get(name)
+    switch (fileInfos.get(name)) {
+      case (?info) {
+        ?{
+          name = info.name;
+          contentType = Option.get(Text.stripStart(info.contentType, #text ""), "application/octet-stream");
+          chunkCount = info.chunkCount;
+        }
+      };
+      case (null) { null };
+    }
   };
 
   public query func getFileChunk(name: Text, chunkIndex: Nat) : async ?Blob {

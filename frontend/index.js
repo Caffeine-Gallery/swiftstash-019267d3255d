@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function viewFile(fileName) {
     try {
       const fileInfo = await backend.getFileInfo(fileName);
+      console.log('File info received:', fileInfo);
       if (fileInfo) {
         const blob = await downloadFileInChunks(fileName, fileInfo.chunkCount, fileInfo.contentType);
         displayFileContent(fileInfo.contentType, URL.createObjectURL(blob));
@@ -109,10 +110,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const chunks = [];
     for (let i = 0; i < totalChunks; i++) {
       const chunkData = await backend.getFileChunk(fileName, i);
-      chunks.push(new Uint8Array(chunkData));
+      if (chunkData) {
+        chunks.push(new Uint8Array(chunkData));
+      } else {
+        console.error(`Failed to download chunk ${i} of file ${fileName}`);
+      }
       updateProgressBar((i + 1) / totalChunks * 100);
     }
-    return new Blob(chunks, { type: contentType });
+    return new Blob(chunks, { type: contentType || 'application/octet-stream' });
   }
 
   function updateProgressBar(progress) {
@@ -127,7 +132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function displayFileContent(contentType, url) {
-    if (contentType.startsWith('image/')) {
+    console.log('Displaying file content. Content type:', contentType);
+    if (contentType && contentType.startsWith('image/')) {
       const img = document.createElement('img');
       img.src = url;
       img.onerror = (e) => {
@@ -136,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
       img.onload = () => console.log('Image loaded successfully');
       displayInModal(img);
-    } else if (contentType.startsWith('text/')) {
+    } else if (contentType && contentType.startsWith('text/')) {
       fetch(url)
         .then(response => response.text())
         .then(text => {
