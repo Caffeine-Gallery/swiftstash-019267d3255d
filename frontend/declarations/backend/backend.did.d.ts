@@ -3,23 +3,16 @@ import type { ActorMethod } from '@dfinity/agent';
 import type { IDL } from '@dfinity/candid';
 
 export interface FileInfo {
+  'content' : Uint8Array | number[],
   'contentType' : string,
   'name' : string,
-  'size' : bigint,
-  'chunkCount' : bigint,
 }
 export interface _SERVICE {
-  'debugFileChunks' : ActorMethod<[string], string>,
   'deleteFile' : ActorMethod<[string], undefined>,
-  'getFileChunk' : ActorMethod<[string, bigint], [] | [Uint8Array | number[]]>,
   'getFileContent' : ActorMethod<[string], [] | [Uint8Array | number[]]>,
   'getFileInfo' : ActorMethod<[string], [] | [FileInfo]>,
   'listFiles' : ActorMethod<[], Array<string>>,
-  'uploadFileChunk' : ActorMethod<
-    [string, string, bigint, bigint, bigint, Uint8Array | number[]],
-    string
-  >,
-  'verifyFileIntegrity' : ActorMethod<[string], boolean>,
+  'uploadFile' : ActorMethod<[string, string, Uint8Array | number[]], string>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;
 export declare const init: (args: { IDL: typeof IDL }) => IDL.Type[];

@@ -1,113 +1,49 @@
-:root {
-  --bg-color: #1a1a1a;
-  --text-color: #ffffff;
-  --primary-color: #3498db;
-  --error-color: #e74c3c;
-  --success-color: #2ecc71;
-  --border-color: #333333;
-}
-
 body {
   font-family: Arial, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  background-color: #1a1a1a;
+  color: #ffffff;
   margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+  padding: 20px;
 }
 
 .container {
-  width: 100%;
   max-width: 600px;
-  padding: 2rem;
-  box-sizing: border-box;
+  margin: 0 auto;
 }
 
-h1, h2 {
-  margin-bottom: 1rem;
+h1 {
+  margin-bottom: 20px;
 }
 
-.upload-section {
-  display: flex;
-  margin-bottom: 1rem;
+input, button {
+  margin-bottom: 10px;
+  padding: 5px;
 }
 
-.file-input {
-  flex-grow: 1;
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  border-radius: 4px 0 0 4px;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
+button {
+  background-color: #3498db;
+  color: white;
   border: none;
-  background-color: var(--primary-color);
-  color: var(--text-color);
   cursor: pointer;
-  transition: background-color 0.3s ease;
 }
 
-.btn:hover {
+button:hover {
   background-color: #2980b9;
 }
 
-.progress-container {
-  height: 5px;
-  background-color: var(--border-color);
-  margin-bottom: 1rem;
-  display: none;
+#status {
+  margin-bottom: 20px;
 }
 
-.progress-bar {
-  height: 100%;
-  background-color: var(--primary-color);
-  width: 0;
-  transition: width 0.3s ease;
-}
-
-.status {
-  margin-bottom: 1rem;
-}
-
-.status.error {
-  color: var(--error-color);
-}
-
-.file-list {
+#fileList {
   list-style-type: none;
   padding: 0;
 }
 
-.file-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+#fileList li {
+  margin-bottom: 10px;
 }
 
-.file-list li:last-child {
-  border-bottom: none;
-}
-
-.btn-delete {
-  background-color: var(--error-color);
-}
-
-.btn-delete:hover {
-  background-color: #c0392b;
-}
-
-.btn-download {
-  background-color: var(--success-color);
-}
-
-.btn-download:hover {
-  background-color: #27ae60;
+#fileList button {
+  margin-left: 10px;
 }
