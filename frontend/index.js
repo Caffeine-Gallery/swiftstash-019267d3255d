@@ -17,7 +17,7 @@ async function initAuth() {
     const isAuthenticated = await authClient.isAuthenticated();
     updateState({ isAuthenticated });
     if (isAuthenticated) {
-        updateFileList();
+        await updateFileList();
     }
 }
 
@@ -69,6 +69,7 @@ async function updateFileList() {
     try {
         const identity = authClient.getIdentity();
         const agent = new HttpAgent({ identity });
+        await agent.fetchRootKey(); // Fetch the root key for the agent
         const authenticatedBackend = backend.createActor(backend.canisterId, { agent });
         const files = await authenticatedBackend.getAllFiles();
         updateState({ files });
@@ -129,7 +130,7 @@ function App() {
     return `
         <div class="container">
             <header>
-                <h1>FileVault</h1>
+                <h1>SwiftStash</h1>
             </header>
             <nav class="button-container">
                 ${state.isAuthenticated 
