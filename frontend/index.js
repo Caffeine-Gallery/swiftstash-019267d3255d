@@ -135,14 +135,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const content = await backend.getFileContent(fileName);
-      if (!content) {
-        throw new Error('Failed to retrieve file content');
+      if (!content || content.length === 0) {
+        throw new Error('Failed to retrieve file content or content is empty');
       }
+
+      console.log(`Received file content for ${fileName}. Size: ${content.length} bytes`);
 
       const blob = new Blob([new Uint8Array(content)], { type: fileInfo.contentType || 'application/octet-stream' });
       if (blob.size === 0) {
         throw new Error('Created blob is empty');
       }
+
+      console.log(`Created blob for ${fileName}. Size: ${blob.size} bytes`);
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

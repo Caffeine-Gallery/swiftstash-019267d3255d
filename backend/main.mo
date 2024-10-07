@@ -187,6 +187,7 @@ actor {
             content.add(byte);
           };
         };
+        Debug.print("Retrieved file content for " # name # " with size: " # Nat.toText(content.size()) # " bytes");
         ?Buffer.toArray(content)
       };
     }
