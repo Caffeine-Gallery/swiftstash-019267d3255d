@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           chunks.push(chunk);
         } else {
           console.error(`Failed to download chunk ${i} after multiple retries`);
-          return null;
+          throw new Error(`Failed to download chunk ${i}`);
         }
         updateProgressBar((i + 1) / fileInfo.chunkCount * 100);
       }
@@ -149,11 +149,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('Downloaded file content is empty');
       }
 
+      if (concatenatedChunks.length !== fileInfo.size) {
+        console.warn(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${concatenatedChunks.length}`);
+      }
+
       console.log(`Assembled file size: ${concatenatedChunks.length} bytes`);
       return new Blob([concatenatedChunks], { type: fileInfo.contentType || 'application/octet-stream' });
     } catch (error) {
       console.error('Error downloading file chunks:', error);
-      return null;
+      throw error;
     }
   }
 
@@ -167,14 +171,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       console.error(`Error downloading chunk ${chunkIndex}:`, error);
+      if (retries < MAX_RETRIES) {
+        console.log(`Retrying chunk ${chunkIndex}, attempt ${retries + 1}`);
+        return retryDownloadChunk(fileName, chunkIndex, retries + 1);
+      }
+      throw error;
     }
-
-    if (retries < MAX_RETRIES) {
-      console.log(`Retrying chunk ${chunkIndex}, attempt ${retries + 1}`);
-      return retryDownloadChunk(fileName, chunkIndex, retries + 1);
-    }
-
-    return null;
   }
 
   function updateProgressBar(progress) {
