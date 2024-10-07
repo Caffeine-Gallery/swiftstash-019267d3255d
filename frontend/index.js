@@ -48,7 +48,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           throw new Error('Empty chunk detected during upload');
         }
         const serializedChunk = Array.from(chunk);
-        await backend.uploadFileChunk(file.name, file.type, BigInt(file.size), BigInt(i), BigInt(totalChunks), serializedChunk);
+        try {
+          await backend.uploadFileChunk(file.name, file.type, BigInt(file.size), BigInt(i), BigInt(totalChunks), serializedChunk);
+        } catch (error) {
+          console.error(`Error uploading chunk ${i}:`, error);
+          throw new Error(`Failed to upload chunk ${i}: ${error.message}`);
+        }
         updateProgressBar((i + 1) / totalChunks * 100);
       }
 
@@ -58,6 +63,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Upload failed:', error);
       uploadStatus.textContent = 'Upload failed: ' + error.message;
       uploadStatus.classList.add('error');
+    } finally {
+      progressBarContainer.style.display = 'none';
     }
   });
 
@@ -92,18 +99,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       console.error('Failed to update file list:', error);
+      uploadStatus.textContent = 'Failed to update file list: ' + error.message;
+      uploadStatus.classList.add('error');
     }
   }
 
   function updateProgressBar(progress) {
     progressBar.style.width = `${progress}%`;
-    if (progress === 100) {
-      setTimeout(() => {
-        progressBarContainer.style.display = 'none';
-      }, 1000);
-    } else {
-      progressBarContainer.style.display = 'block';
-    }
+    progressBarContainer.style.display = 'block';
   }
 
   await updateFileList();

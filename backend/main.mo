@@ -33,6 +33,7 @@ actor {
 
   public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat64, chunkIndex: Nat64, totalChunks: Nat64, data: [Nat8]) : async () {
     if (data.size() == 0) {
+      Debug.print("Error: Received empty chunk for file " # name # " at index " # Nat64.toText(chunkIndex));
       throw Error.reject("Cannot upload empty chunk");
     };
 
@@ -41,6 +42,7 @@ actor {
     switch (fileChunks.get(name)) {
       case (null) {
         if (totalSize == 0) {
+          Debug.print("Error: Attempted to upload file " # name # " with 0 bytes");
           throw Error.reject("Cannot upload file with 0 bytes");
         };
         let newChunks = Array.init<FileChunk>(Nat64.toNat(totalChunks), chunk);
