@@ -76,14 +76,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function viewFile(fileName) {
     try {
       const file = await backend.getFile(fileName);
-      if (file) {
+      if (file && file.length > 0) {
         const fileData = file[0];
-        const blob = new Blob([new Uint8Array(fileData.data)], { type: fileData.content_type });
+        console.log('File data:', fileData);  // Log file data for debugging
+
+        // Decode the file data
+        const decodedData = new Uint8Array(fileData.data);
+        console.log('Decoded data:', decodedData);  // Log decoded data for debugging
+
+        const blob = new Blob([decodedData], { type: fileData.content_type });
+        console.log('Blob:', blob);  // Log blob for debugging
+
         const url = URL.createObjectURL(blob);
+        console.log('Created URL:', url);  // Log created URL for debugging
 
         if (fileData.content_type.startsWith('image/')) {
           const img = document.createElement('img');
           img.src = url;
+          img.onerror = () => {
+            console.error('Failed to load image');
+            alert('Failed to load image. Please check the console for more details.');
+          };
           displayInModal(img);
         } else if (fileData.content_type.startsWith('text/')) {
           const text = await blob.text();
@@ -98,8 +111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           displayInModal(link);
         }
       } else {
-        console.error('File not found');
-        alert('File not found');
+        console.error('File not found or invalid file data');
+        alert('File not found or invalid file data');
       }
     } catch (error) {
       console.error('Failed to view file:', error);
