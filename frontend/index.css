@@ -3,49 +3,58 @@ body {
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
 }
 
 .container {
     width: 80%;
+    max-width: 800px;
     margin: auto;
     overflow: hidden;
     padding: 20px;
 }
 
 h1, h2 {
-    color: #333;
+    color: #bb86fc;
 }
 
 .upload-section {
-    background: #fff;
+    background: #2e2e2e;
     padding: 20px;
     margin-bottom: 20px;
     border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 #fileInput {
     margin-right: 10px;
+    background: #3e3e3e;
+    color: #e0e0e0;
+    border: 1px solid #555;
+    padding: 5px;
+    border-radius: 3px;
 }
 
 button {
-    background: #333;
-    color: #fff;
+    background: #bb86fc;
+    color: #1e1e1e;
     border: none;
     padding: 10px 15px;
     cursor: pointer;
+    border-radius: 3px;
+    transition: background-color 0.3s ease;
 }
 
 button:hover {
-    background: #555;
+    background: #9966cc;
 }
 
 .file-list {
-    background: #fff;
+    background: #2e2e2e;
     padding: 20px;
     border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 ul {
@@ -54,34 +63,59 @@ ul {
 }
 
 li {
-    background: #f4f4f4;
+    background: #3e3e3e;
     margin-bottom: 10px;
     padding: 10px;
     border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 li button {
-    float: right;
     font-size: 0.8em;
 }
 
 .progress-container {
     width: 100%;
-    background-color: #f0f0f0;
+    background-color: #3e3e3e;
     border-radius: 5px;
     margin-top: 10px;
     display: none;
+    overflow: hidden;
 }
 
 .progress-bar {
     width: 0;
     height: 20px;
-    background-color: #4CAF50;
+    background-color: #03dac6;
     border-radius: 5px;
     transition: width 0.3s ease-in-out;
 }
 
-#uploadStatus {
+.status {
     margin-top: 10px;
     font-weight: bold;
+}
+
+.error {
+    color: #cf6679;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.container {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+button, input[type="file"] {
+    transition: transform 0.1s ease-in-out;
+}
+
+button:active, input[type="file"]:active {
+    transform: scale(0.98);
 }

@@ -10,41 +10,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadStatus = document.getElementById('uploadStatus');
 
   uploadButton.addEventListener('click', async () => {
+    if (!fileInput.files.length) {
+      uploadStatus.textContent = 'Error: Please select a file first';
+      uploadStatus.classList.add('error');
+      return;
+    }
+
     const file = fileInput.files[0];
-    if (file) {
+    try {
+      progressBarContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      uploadStatus.textContent = 'Uploading...';
+      uploadStatus.classList.remove('error');
+
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Serialize the data using @dfinity/candid
+      const serializedData = IDL.encode([IDL.Vec(IDL.Nat8)], [Array.from(uint8Array)]);
+
+      // Simulate progress
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        progressBar.style.width = `${Math.min(progress, 90)}%`;
+      }, 200);
+
       try {
-        progressBarContainer.style.display = 'block';
-        progressBar.style.width = '0%';
-        uploadStatus.textContent = 'Uploading...';
-
-        const arrayBuffer = await file.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        
-        // Serialize the data using @dfinity/candid
-        const serializedData = IDL.encode([IDL.Vec(IDL.Nat8)], [Array.from(uint8Array)]);
-
-        // Simulate progress
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 10;
-          progressBar.style.width = `${Math.min(progress, 90)}%`;
-        }, 200);
-
-        try {
-          const result = await backend.uploadFile(file.name, file.type, serializedData);
-          clearInterval(interval);
-          progressBar.style.width = '100%';
-          uploadStatus.textContent = result;
-          await updateFileList();
-        } catch (error) {
-          clearInterval(interval);
-          console.error('Upload failed:', error);
-          uploadStatus.textContent = 'Upload failed: ' + error.message;
-        }
+        const result = await backend.uploadFile(file.name, file.type, serializedData);
+        clearInterval(interval);
+        progressBar.style.width = '100%';
+        uploadStatus.textContent = result;
+        await updateFileList();
       } catch (error) {
-        console.error('File reading failed:', error);
-        uploadStatus.textContent = 'File reading failed: ' + error.message;
+        clearInterval(interval);
+        console.error('Upload failed:', error);
+        uploadStatus.textContent = 'Upload failed: ' + error.message;
+        uploadStatus.classList.add('error');
       }
+    } catch (error) {
+      console.error('File reading failed:', error);
+      uploadStatus.textContent = 'File reading failed: ' + error.message;
+      uploadStatus.classList.add('error');
     }
   });
 
