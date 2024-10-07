@@ -1,5 +1,7 @@
+import Error "mo:base/Error";
 import Func "mo:base/Func";
 import Hash "mo:base/Hash";
+import Nat8 "mo:base/Nat8";
 
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
@@ -24,14 +26,19 @@ actor {
   var files = HashMap.HashMap<Text, File>(0, Text.equal, Text.hash);
 
   // Function to upload a file
-  public func uploadFile(name: Text, content_type: Text, data: Blob) : async Text {
+  public func uploadFile(name: Text, content_type: Text, data: [Nat8]) : async Text {
+    if (data.size() == 0) {
+      Debug.print("Error: Empty file data received");
+      return "Error: Empty file data";
+    };
+
     let file : File = {
       name = name;
       content_type = content_type;
-      data = data;
+      data = Blob.fromArray(data);
     };
     files.put(name, file);
-    Debug.print("File uploaded: " # name);
+    Debug.print("File uploaded: " # name # " (size: " # Nat.toText(data.size()) # " bytes)");
     "File uploaded successfully"
   };
 
