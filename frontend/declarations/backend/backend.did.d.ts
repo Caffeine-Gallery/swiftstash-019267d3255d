@@ -16,7 +16,7 @@ export interface _SERVICE {
   'listFiles' : ActorMethod<[], Array<string>>,
   'uploadFileChunk' : ActorMethod<
     [string, string, bigint, bigint, bigint, Uint8Array | number[]],
-    undefined
+    string
   >,
   'verifyFileIntegrity' : ActorMethod<[string], boolean>,
 }

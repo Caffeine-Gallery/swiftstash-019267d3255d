@@ -51,7 +51,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         const serializedChunk = Array.from(chunk);
         try {
-          await backend.uploadFileChunk(file.name, file.type, BigInt(file.size), BigInt(i), BigInt(totalChunks), serializedChunk);
+          const result = await backend.uploadFileChunk(file.name, file.type, BigInt(file.size), BigInt(i), BigInt(totalChunks), serializedChunk);
+          if (result.startsWith("Error:")) {
+            throw new Error(result);
+          }
         } catch (error) {
           console.error(`Error uploading chunk ${i}:`, error);
           throw new Error(`Failed to upload chunk ${i}: ${error.message}`);

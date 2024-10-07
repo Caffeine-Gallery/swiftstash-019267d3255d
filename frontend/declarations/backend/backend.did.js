@@ -24,7 +24,7 @@ export const idlFactory = ({ IDL }) => {
           IDL.Nat64,
           IDL.Vec(IDL.Nat8),
         ],
-        [],
+        [IDL.Text],
         [],
       ),
     'verifyFileIntegrity' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),

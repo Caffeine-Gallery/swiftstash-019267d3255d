@@ -33,10 +33,10 @@ actor {
   var fileInfos = HashMap.HashMap<Text, FileInfo>(0, Text.equal, Text.hash);
   var fileChunks = HashMap.HashMap<Text, Buffer.Buffer<FileChunk>>(0, Text.equal, Text.hash);
 
-  public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat64, chunkIndex: Nat64, totalChunks: Nat64, data: [Nat8]) : async () {
+  public func uploadFileChunk(name: Text, contentType: Text, totalSize: Nat64, chunkIndex: Nat64, totalChunks: Nat64, data: [Nat8]) : async Text {
     if (data.size() == 0) {
       Debug.print("Error: Received empty chunk for file " # name # " at index " # Nat64.toText(chunkIndex));
-      throw Error.reject("Cannot upload empty chunk");
+      return "Error: Cannot upload empty chunk";
     };
 
     let chunk : FileChunk = { data = Blob.fromArray(data) };
@@ -45,7 +45,7 @@ actor {
       case (null) {
         if (totalSize == 0) {
           Debug.print("Error: Attempted to upload file " # name # " with 0 bytes");
-          throw Error.reject("Cannot upload file with 0 bytes");
+          return "Error: Cannot upload file with 0 bytes";
         };
         let newChunks = Buffer.Buffer<FileChunk>(Nat64.toNat(totalChunks));
         newChunks.add(chunk);
@@ -59,12 +59,13 @@ actor {
           existingChunks.put(Nat64.toNat(chunkIndex), chunk);
         } else {
           Debug.print("Error: Invalid chunk index " # Nat64.toText(chunkIndex) # " for file " # name);
-          throw Error.reject("Invalid chunk index");
+          return "Error: Invalid chunk index";
         };
       };
     };
 
     Debug.print("Uploaded chunk " # Nat64.toText(chunkIndex) # " of " # Nat64.toText(totalChunks) # " for file " # name # " (Chunk size: " # Nat.toText(data.size()) # " bytes)");
+    return "Success: Chunk uploaded";
   };
 
   public query func getFileInfo(name: Text) : async ?FileInfo {
