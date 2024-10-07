@@ -83,8 +83,6 @@ nav {
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.3s;
-  text-align: center;
-  margin: 5px auto;
 }
 
 .btn:hover {
@@ -117,6 +115,7 @@ nav {
   display: flex;
   gap: 10px;
   justify-content: center;
+  align-items: center;
 }
 
 .status {
@@ -171,6 +170,5 @@ nav {
   .button-container {
     margin-top: 10px;
     width: 100%;
-    justify-content: center;
   }
 }

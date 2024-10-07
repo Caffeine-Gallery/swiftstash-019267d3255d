@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await saveFileLocally(file.name, file.type, content);
       await backend.uploadFile(file.name, file.type, Array.from(new Uint8Array(content)));
       updateStatus('File uploaded successfully', 'success');
-      updateFileList();
+      await updateFileList();
     } catch (error) {
       updateStatus('Upload failed: ' + error.message, 'error');
     } finally {
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const deleteButton = createButton('Delete', async () => {
       await backend.deleteFile(fileName);
       await deleteFileLocally(fileName);
-      updateFileList();
+      await updateFileList();
     });
     
     buttonContainer.appendChild(downloadButton);

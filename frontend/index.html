@@ -11,7 +11,7 @@
         <header>
             <h1>FileVault</h1>
         </header>
-        <nav>
+        <nav class="button-container">
             <button id="loginButton" class="btn">Login</button>
             <button id="logoutButton" class="btn" style="display: none;">Logout</button>
         </nav>
@@ -22,7 +22,9 @@
                     <input type="file" id="fileInput" class="file-input">
                     <label for="fileInput" class="file-input-label">Choose a file</label>
                 </div>
-                <button id="uploadButton" class="btn">Upload</button>
+                <div class="button-container">
+                    <button id="uploadButton" class="btn">Upload</button>
+                </div>
                 <div id="progressBarContainer" class="progress-bar-container">
                     <div id="progressBar" class="progress-bar"></div>
                 </div>
