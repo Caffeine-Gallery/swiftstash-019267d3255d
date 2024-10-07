@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
-  const MAX_RETRIES = 3;
+  const MAX_RETRIES = 5;
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -127,23 +127,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateProgressBar(0);
     try {
       const chunks = [];
+      let totalDownloadedSize = 0;
       for (let i = 0; i < fileInfo.chunkCount; i++) {
         const chunk = await retryDownloadChunk(fileInfo.name, i);
-        if (chunk) {
+        if (chunk && chunk.length > 0) {
           chunks.push(chunk);
+          totalDownloadedSize += chunk.length;
         } else {
-          console.error(`Failed to download chunk ${i} after multiple retries`);
-          throw new Error(`Failed to download chunk ${i}`);
+          console.error(`Empty or null chunk received for index ${i}`);
         }
         updateProgressBar((i + 1) / fileInfo.chunkCount * 100);
       }
 
-      const concatenatedChunks = chunks.reduce((acc, chunk) => {
-        const newArray = new Uint8Array(acc.length + chunk.length);
-        newArray.set(acc);
-        newArray.set(chunk, acc.length);
-        return newArray;
-      }, new Uint8Array());
+      if (chunks.length === 0) {
+        throw new Error('No valid chunks were downloaded');
+      }
+
+      const concatenatedChunks = new Uint8Array(totalDownloadedSize);
+      let offset = 0;
+      for (const chunk of chunks) {
+        concatenatedChunks.set(chunk, offset);
+        offset += chunk.length;
+      }
 
       if (concatenatedChunks.length === 0) {
         throw new Error('Downloaded file content is empty');
@@ -173,6 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error(`Error downloading chunk ${chunkIndex}:`, error);
       if (retries < MAX_RETRIES) {
         console.log(`Retrying chunk ${chunkIndex}, attempt ${retries + 1}`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retries))); // Exponential backoff
         return retryDownloadChunk(fileName, chunkIndex, retries + 1);
       }
       throw error;
