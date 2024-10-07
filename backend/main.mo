@@ -44,6 +44,7 @@ actor {
         fileChunks.put(name, Array.freeze(updatedChunks));
       };
     };
+    Debug.print("Uploaded chunk " # Nat.toText(chunkIndex) # " of " # Nat.toText(totalChunks) # " for file " # name);
   };
 
   public query func getFileInfo(name: Text) : async ?FileInfo {
@@ -61,11 +62,16 @@ actor {
 
   public query func getFileChunk(name: Text, chunkIndex: Nat) : async ?Blob {
     switch (fileChunks.get(name)) {
-      case (null) { null };
+      case (null) { 
+        Debug.print("File not found: " # name);
+        null 
+      };
       case (?chunks) {
         if (chunkIndex < chunks.size()) {
+          Debug.print("Returning chunk " # Nat.toText(chunkIndex) # " of file " # name);
           ?chunks[chunkIndex].data
         } else {
+          Debug.print("Chunk index out of range for file " # name);
           null
         }
       };

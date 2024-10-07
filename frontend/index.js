@@ -94,8 +94,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const fileInfo = await backend.getFileInfo(fileName);
       console.log('File info received:', fileInfo);
       if (fileInfo) {
-        const blob = await downloadFileInChunks(fileName, fileInfo.chunkCount, fileInfo.contentType);
-        displayFileContent(fileInfo.contentType, URL.createObjectURL(blob));
+        const fileData = await downloadFileInChunks(fileName, fileInfo.chunkCount, fileInfo.contentType);
+        displayFileContent(fileInfo.name, fileInfo.contentType, fileData);
       } else {
         console.error('File not found or invalid file data');
         alert('File not found or invalid file data');
@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function downloadFileInChunks(fileName, totalChunks, contentType) {
     const chunks = [];
+    updateProgressBar(0);
     for (let i = 0; i < totalChunks; i++) {
       const chunkData = await backend.getFileChunk(fileName, i);
       if (chunkData) {
@@ -117,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       updateProgressBar((i + 1) / totalChunks * 100);
     }
-    return new Blob(chunks, { type: contentType || 'application/octet-stream' });
+    return new File(chunks, fileName, { type: contentType || 'application/octet-stream' });
   }
 
   function updateProgressBar(progress) {
@@ -131,8 +132,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function displayFileContent(contentType, url) {
+  function displayFileContent(fileName, contentType, fileData) {
     console.log('Displaying file content. Content type:', contentType);
+    const url = URL.createObjectURL(fileData);
+
     if (contentType && contentType.startsWith('image/')) {
       const img = document.createElement('img');
       img.src = url;
@@ -157,8 +160,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'download';
-      link.textContent = `Download file`;
+      link.download = fileName;
+      link.textContent = `Download ${fileName}`;
+      link.onclick = (e) => {
+        e.preventDefault();
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: false
+        });
+        link.dispatchEvent(clickEvent);
+      };
       displayInModal(link);
     }
   }
