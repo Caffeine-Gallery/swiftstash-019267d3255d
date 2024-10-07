@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadStatus = document.getElementById('uploadStatus');
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+  const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -103,7 +104,19 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         };
 
-        worker.postMessage({ fileData });
+        // Send file data to worker in chunks
+        const chunkCount = Math.ceil(fileData.data.length / CHUNK_SIZE);
+        for (let i = 0; i < chunkCount; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min((i + 1) * CHUNK_SIZE, fileData.data.length);
+          const chunk = fileData.data.slice(start, end);
+          worker.postMessage({
+            type: 'chunk',
+            data: chunk,
+            contentType: fileData.content_type,
+            isLastChunk: i === chunkCount - 1
+          });
+        }
       } else {
         console.error('File not found or invalid file data');
         alert('File not found or invalid file data');

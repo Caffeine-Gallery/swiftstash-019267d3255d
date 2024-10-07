@@ -1,40 +1,43 @@
-const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+let processedData = null;
+let processedDataType = null;
 
 self.onmessage = async (event) => {
-  const { fileData } = event.data;
+  const { type, data, contentType, isLastChunk } = event.data;
 
-  try {
-    const decodedData = new Uint8Array(fileData.data);
-    const totalChunks = Math.ceil(decodedData.length / CHUNK_SIZE);
-    let result = '';
-
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * CHUNK_SIZE;
-      const end = Math.min((i + 1) * CHUNK_SIZE, decodedData.length);
-      const chunk = decodedData.subarray(start, end);
-
-      if (fileData.content_type.startsWith('image/')) {
-        result += String.fromCharCode.apply(null, chunk);
-      } else if (fileData.content_type.startsWith('text/')) {
-        result += new TextDecoder().decode(chunk);
-      } else {
-        // For other file types, we'll create a Blob and return its URL
-        const blob = new Blob([decodedData], { type: fileData.content_type });
-        result = URL.createObjectURL(blob);
-        break; // No need to process in chunks for blob URL
+  if (type === 'chunk') {
+    try {
+      if (!processedData) {
+        processedData = new Uint8Array(0);
+        processedDataType = contentType;
       }
 
-      // Report progress
-      self.postMessage({ type: 'progress', data: Math.round(((i + 1) / totalChunks) * 100) });
-    }
+      const newData = new Uint8Array(processedData.length + data.length);
+      newData.set(processedData);
+      newData.set(new Uint8Array(data), processedData.length);
+      processedData = newData;
 
-    if (fileData.content_type.startsWith('image/')) {
-      const base64 = btoa(result);
-      result = `data:${fileData.content_type};base64,${base64}`;
-    }
+      self.postMessage({ type: 'progress', data: Math.round((processedData.length / (10 * 1024 * 1024)) * 100) });
 
-    self.postMessage({ type: 'result', data: result });
-  } catch (error) {
-    self.postMessage({ type: 'error', data: error.message });
+      if (isLastChunk) {
+        let result;
+        if (contentType.startsWith('image/')) {
+          const base64 = btoa(String.fromCharCode.apply(null, processedData));
+          result = `data:${contentType};base64,${base64}`;
+        } else if (contentType.startsWith('text/')) {
+          result = new TextDecoder().decode(processedData);
+        } else {
+          const blob = new Blob([processedData], { type: contentType });
+          result = URL.createObjectURL(blob);
+        }
+
+        self.postMessage({ type: 'result', data: result });
+        processedData = null;
+        processedDataType = null;
+      }
+    } catch (error) {
+      self.postMessage({ type: 'error', data: error.message });
+      processedData = null;
+      processedDataType = null;
+    }
   }
 };
