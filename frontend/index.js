@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
-  const MAX_RETRIES = 15;
 
   uploadButton.addEventListener('click', async () => {
     if (!fileInput.files.length) {
@@ -89,117 +88,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       for (const fileName of files) {
         const li = document.createElement('li');
         li.textContent = fileName;
-
-        const downloadButton = document.createElement('button');
-        downloadButton.textContent = 'Download';
-        downloadButton.addEventListener('click', () => downloadFile(fileName));
-        li.appendChild(downloadButton);
-
         fileList.appendChild(li);
       }
     } catch (error) {
       console.error('Failed to update file list:', error);
-    }
-  }
-
-  async function downloadFile(fileName) {
-    try {
-      const fileInfo = await backend.getFileInfo(fileName);
-      if (fileInfo) {
-        if (fileInfo.size === BigInt(0)) {
-          throw new Error('File size is 0 bytes');
-        }
-        const fileData = await downloadFileInChunks(fileInfo);
-        if (fileData) {
-          const url = URL.createObjectURL(fileData);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        } else {
-          throw new Error('Failed to download file data');
-        }
-      } else {
-        throw new Error('File not found or invalid file data');
-      }
-    } catch (error) {
-      console.error('Failed to download file:', error);
-      alert('Failed to download file: ' + error.message);
-    }
-  }
-
-  async function downloadFileInChunks(fileInfo) {
-    updateProgressBar(0);
-    try {
-      const chunks = [];
-      let totalDownloadedSize = 0;
-      let successfulChunks = 0;
-      for (let i = 0; i < Number(fileInfo.chunkCount); i++) {
-        try {
-          const chunk = await retryDownloadChunk(fileInfo.name, BigInt(i));
-          if (chunk && chunk.length > 0) {
-            chunks.push(chunk);
-            totalDownloadedSize += chunk.length;
-            successfulChunks++;
-          } else {
-            console.warn(`Empty chunk received for index ${i}`);
-          }
-        } catch (error) {
-          console.error(`Failed to download chunk ${i}:`, error);
-        }
-        updateProgressBar((i + 1) / Number(fileInfo.chunkCount) * 100);
-      }
-
-      if (successfulChunks === 0) {
-        throw new Error('No valid chunks were downloaded');
-      }
-
-      if (successfulChunks < Number(fileInfo.chunkCount)) {
-        console.warn(`Only ${successfulChunks} out of ${fileInfo.chunkCount} chunks were successfully downloaded`);
-      }
-
-      const concatenatedChunks = new Uint8Array(totalDownloadedSize);
-      let offset = 0;
-      for (const chunk of chunks) {
-        concatenatedChunks.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      if (concatenatedChunks.length === 0) {
-        throw new Error('Downloaded file content is empty');
-      }
-
-      if (BigInt(concatenatedChunks.length) !== fileInfo.size) {
-        console.warn(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${concatenatedChunks.length}`);
-      }
-
-      console.log(`Assembled file size: ${concatenatedChunks.length} bytes`);
-      return new Blob([concatenatedChunks], { type: fileInfo.contentType || 'application/octet-stream' });
-    } catch (error) {
-      console.error('Error downloading file chunks:', error);
-      throw error;
-    }
-  }
-
-  async function retryDownloadChunk(fileName, chunkIndex, retries = 0) {
-    try {
-      const chunk = await backend.getFileChunk(fileName, chunkIndex);
-      if (chunk && chunk.length > 0) {
-        return new Uint8Array(chunk);
-      } else {
-        throw new Error('Received empty chunk from backend');
-      }
-    } catch (error) {
-      console.error(`Error downloading chunk ${chunkIndex}:`, error);
-      if (retries < MAX_RETRIES) {
-        console.log(`Retrying chunk ${chunkIndex}, attempt ${retries + 1}`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(1.5, retries))); // Exponential backoff
-        return retryDownloadChunk(fileName, chunkIndex, retries + 1);
-      }
-      throw error;
     }
   }
 
