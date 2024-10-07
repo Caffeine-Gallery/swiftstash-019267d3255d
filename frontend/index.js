@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
   const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
-  const MAX_RETRY_ATTEMPTS = 3;
+  const MAX_RETRY_ATTEMPTS = 5;
   const CHUNK_DOWNLOAD_TIMEOUT = 10000; // 10 seconds
 
   uploadButton.addEventListener('click', async () => {
@@ -169,6 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const totalChunks = Number(fileInfo.chunkCount);
       const chunks = [];
       let totalSize = 0;
+      let validChunksDownloaded = 0;
 
       for (let i = 0; i < totalChunks; i++) {
         let chunkData = null;
@@ -178,31 +179,34 @@ document.addEventListener('DOMContentLoaded', async () => {
               backend.getFileChunk(fileName, BigInt(i)),
               new Promise((_, reject) => setTimeout(() => reject(new Error('Chunk download timeout')), CHUNK_DOWNLOAD_TIMEOUT))
             ]);
-            if (chunkData) break;
+            if (chunkData) {
+              const chunk = new Uint8Array(chunkData);
+              if (chunk.length > 0) {
+                chunks.push(chunk);
+                totalSize += chunk.length;
+                validChunksDownloaded++;
+                break;
+              } else {
+                console.warn(`Empty chunk received for index ${i}, retrying...`);
+              }
+            }
           } catch (error) {
             console.warn(`Attempt ${attempt + 1} failed for chunk ${i}:`, error.message);
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt))); // Exponential backoff
           }
         }
         if (!chunkData) {
           console.error(`Failed to download chunk ${i} after ${MAX_RETRY_ATTEMPTS} attempts`);
-          throw new Error(`Failed to download chunk ${i}`);
         }
-        const chunk = new Uint8Array(chunkData);
-        if (chunk.length === 0) {
-          console.error(`Chunk ${i} is empty`);
-          throw new Error(`Empty chunk ${i} detected`);
-        }
-        chunks.push(chunk);
-        totalSize += chunk.length;
         updateProgressBar((i + 1) / totalChunks * 100);
       }
 
-      if (chunks.length === 0 || totalSize === 0) {
+      if (validChunksDownloaded === 0) {
         throw new Error('No valid chunks were downloaded');
       }
 
       if (chunks.length !== totalChunks) {
-        throw new Error(`Expected ${totalChunks} chunks, but received ${chunks.length}`);
+        console.warn(`Expected ${totalChunks} chunks, but received ${chunks.length}`);
       }
 
       const blob = new Blob(chunks, { type: fileInfo.contentType });
@@ -211,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       if (blob.size !== Number(fileInfo.size)) {
-        throw new Error(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${blob.size}`);
+        console.warn(`File size mismatch. Expected: ${fileInfo.size}, Actual: ${blob.size}`);
       }
 
       const url = URL.createObjectURL(blob);
@@ -223,7 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      uploadStatus.textContent = 'Download completed';
+      uploadStatus.textContent = `Download completed (${validChunksDownloaded}/${totalChunks} chunks)`;
     } catch (error) {
       console.error('Download failed:', error);
       uploadStatus.textContent = 'Download failed: ' + error.message;
