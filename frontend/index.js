@@ -31,8 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       progressBarContainer.style.display = 'block';
       const content = await readFileAsArrayBuffer(file);
       await saveFileLocally(file.name, file.type, content);
-      const result = await uploadFileWithProgress(file.name, file.type, new Uint8Array(content));
-      updateStatus(result, 'success');
+      updateStatus('File uploaded successfully', 'success');
       updateFileList();
     } catch (error) {
       updateStatus('Upload failed: ' + error.message, 'error');
@@ -40,22 +39,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       progressBarContainer.style.display = 'none';
       progressBar.style.width = '0%';
     }
-  }
-
-  async function uploadFileWithProgress(name, contentType, content) {
-    const chunkSize = 1024 * 1024; // 1MB chunks
-    const totalChunks = Math.ceil(content.length / chunkSize);
-    let uploadedChunks = 0;
-
-    for (let i = 0; i < content.length; i += chunkSize) {
-      const chunk = content.slice(i, i + chunkSize);
-      await backend.uploadFile(name, contentType, Array.from(chunk));
-      uploadedChunks++;
-      const progress = (uploadedChunks / totalChunks) * 100;
-      progressBar.style.width = `${progress}%`;
-    }
-
-    return "Success: File uploaded";
   }
 
   function updateFileInputLabel() {
@@ -69,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function updateFileList() {
-    const files = await backend.listFiles();
+    const files = await listFilesLocally();
     fileList.innerHTML = '';
     files.forEach(fileName => {
       const li = createFileListItem(fileName);
@@ -86,7 +69,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const downloadButton = createButton('Download', () => downloadFile(fileName));
     const deleteButton = createButton('Delete', async () => {
-      await backend.deleteFile(fileName);
       await deleteFileLocally(fileName);
       updateFileList();
     });
@@ -107,14 +89,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function downloadFile(fileName) {
     try {
-      const localFile = await getFileLocally(fileName);
-      if (localFile && localFile.content.byteLength > 1) {
-        triggerDownload(localFile.name, localFile.type, localFile.content);
-      } else {
-        const fileInfo = await backend.getFileInfo(fileName);
-        if (!fileInfo) throw new Error('File not found');
-        triggerDownload(fileName, fileInfo.contentType, new Uint8Array(fileInfo.content).buffer);
-      }
+      const file = await getFileLocally(fileName);
+      if (!file) throw new Error('File not found');
+      triggerDownload(file.name, file.type, file.content);
       updateStatus(`File ${fileName} downloaded successfully`, 'success');
     } catch (error) {
       updateStatus('Download failed: ' + error.message, 'error');
@@ -156,21 +133,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function saveFileLocally(name, type, content) {
-    const transaction = db.transaction(["files"], "readwrite");
-    const store = transaction.objectStore("files");
-    await store.put({ name, type, content });
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(["files"], "readwrite");
+      const store = transaction.objectStore("files");
+      const request = store.put({ name, type, content });
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
   }
 
   async function getFileLocally(name) {
-    const transaction = db.transaction(["files"], "readonly");
-    const store = transaction.objectStore("files");
-    return await store.get(name);
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(["files"], "readonly");
+      const store = transaction.objectStore("files");
+      const request = store.get(name);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
   }
 
   async function deleteFileLocally(name) {
-    const transaction = db.transaction(["files"], "readwrite");
-    const store = transaction.objectStore("files");
-    await store.delete(name);
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(["files"], "readwrite");
+      const store = transaction.objectStore("files");
+      const request = store.delete(name);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async function listFilesLocally() {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(["files"], "readonly");
+      const store = transaction.objectStore("files");
+      const request = store.getAllKeys();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
   }
 
   updateFileList();

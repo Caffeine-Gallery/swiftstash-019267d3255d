@@ -163,6 +163,6 @@ h1, h2 {
   .button-container {
     margin-top: 10px;
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 }
