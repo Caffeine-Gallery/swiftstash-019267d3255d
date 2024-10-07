@@ -1,52 +1,113 @@
+:root {
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --primary-color: #3498db;
+  --error-color: #e74c3c;
+  --success-color: #2ecc71;
+  --border-color: #333333;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
+  font-family: Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
 }
 
-#progressBarContainer {
-    width: 100%;
-    background-color: #f0f0f0;
-    margin-top: 10px;
+.container {
+  width: 100%;
+  max-width: 600px;
+  padding: 2rem;
+  box-sizing: border-box;
 }
 
-#progressBar {
-    width: 0%;
-    height: 20px;
-    background-color: #4CAF50;
+h1, h2 {
+  margin-bottom: 1rem;
 }
 
-#uploadStatus {
-    margin-top: 10px;
+.upload-section {
+  display: flex;
+  margin-bottom: 1rem;
 }
 
-#uploadStatus.error {
-    color: red;
+.file-input {
+  flex-grow: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border-radius: 4px 0 0 4px;
 }
 
-#fileList {
-    list-style-type: none;
-    padding: 0;
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: var(--primary-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
-#fileList li {
-    margin-bottom: 10px;
+.btn:hover {
+  background-color: #2980b9;
 }
 
-#fileList button {
-    margin-left: 10px;
+.progress-container {
+  height: 5px;
+  background-color: var(--border-color);
+  margin-bottom: 1rem;
+  display: none;
 }
 
-#fileContentDisplay {
-    margin-top: 20px;
-    border: 1px solid #ccc;
-    padding: 10px;
-    max-height: 400px;
-    overflow-y: auto;
+.progress-bar {
+  height: 100%;
+  background-color: var(--primary-color);
+  width: 0;
+  transition: width 0.3s ease;
 }
 
-pre {
-    white-space: pre-wrap;
-    word-wrap: break-word;
+.status {
+  margin-bottom: 1rem;
+}
+
+.status.error {
+  color: var(--error-color);
+}
+
+.file-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.file-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.file-list li:last-child {
+  border-bottom: none;
+}
+
+.btn-delete {
+  background-color: var(--error-color);
+}
+
+.btn-delete:hover {
+  background-color: #c0392b;
+}
+
+.btn-download {
+  background-color: var(--success-color);
+}
+
+.btn-download:hover {
+  background-color: #27ae60;
 }
