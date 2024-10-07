@@ -8,8 +8,8 @@ export interface FileInfo {
 }
 export interface _SERVICE {
   'deleteFile' : ActorMethod<[string], undefined>,
-  'getFileInfo' : ActorMethod<[string], [] | [FileInfo]>,
-  'listFiles' : ActorMethod<[], Array<string>>,
+  'getFileInfo' : ActorMethod<[Principal, string], [] | [FileInfo]>,
+  'listFiles' : ActorMethod<[Principal], Array<string>>,
   'uploadFile' : ActorMethod<[string, string, Uint8Array | number[]], string>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;

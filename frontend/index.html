@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Manager</title>
+    <title>FileVault</title>
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>File Manager</h1>
+            <h1>FileVault</h1>
         </header>
-        <main>
+        <nav>
+            <button id="loginButton" class="btn">Login</button>
+            <button id="logoutButton" class="btn" style="display: none;">Logout</button>
+        </nav>
+        <main id="mainContent" style="display: none;">
             <section class="upload-section">
                 <h2>Upload File</h2>
                 <div class="file-input-wrapper">

@@ -1,6 +1,10 @@
 import { backend } from 'declarations/backend';
+import { AuthClient } from "@dfinity/auth-client";
+import { Principal } from "@dfinity/principal";
 
 let db;
+let authClient;
+let userPrincipal;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const fileInput = document.getElementById('fileInput');
@@ -9,11 +13,54 @@ document.addEventListener('DOMContentLoaded', async () => {
   const status = document.getElementById('status');
   const progressBar = document.getElementById('progressBar');
   const progressBarContainer = document.getElementById('progressBarContainer');
+  const loginButton = document.getElementById('loginButton');
+  const logoutButton = document.getElementById('logoutButton');
+  const mainContent = document.getElementById('mainContent');
 
   initIndexedDB();
+  await initAuth();
 
+  loginButton.onclick = login;
+  logoutButton.onclick = logout;
   uploadButton.addEventListener('click', handleUpload);
   fileInput.addEventListener('change', updateFileInputLabel);
+
+  async function initAuth() {
+    authClient = await AuthClient.create();
+    if (await authClient.isAuthenticated()) {
+      userPrincipal = await authClient.getIdentity().getPrincipal();
+      showAuthenticatedUI();
+    }
+  }
+
+  async function login() {
+    await authClient.login({
+      identityProvider: "https://identity.ic0.app/#authorize",
+      onSuccess: () => {
+        userPrincipal = authClient.getIdentity().getPrincipal();
+        showAuthenticatedUI();
+      },
+    });
+  }
+
+  async function logout() {
+    await authClient.logout();
+    showUnauthenticatedUI();
+  }
+
+  function showAuthenticatedUI() {
+    loginButton.style.display = 'none';
+    logoutButton.style.display = 'inline-block';
+    mainContent.style.display = 'block';
+    updateFileList();
+  }
+
+  function showUnauthenticatedUI() {
+    loginButton.style.display = 'inline-block';
+    logoutButton.style.display = 'none';
+    mainContent.style.display = 'none';
+    userPrincipal = null;
+  }
 
   async function handleUpload() {
     if (!fileInput.files.length) {
@@ -31,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       progressBarContainer.style.display = 'block';
       const content = await readFileAsArrayBuffer(file);
       await saveFileLocally(file.name, file.type, content);
+      await backend.uploadFile(file.name, file.type, Array.from(new Uint8Array(content)));
       updateStatus('File uploaded successfully', 'success');
       updateFileList();
     } catch (error) {
@@ -52,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function updateFileList() {
-    const files = await listFilesLocally();
+    const files = await backend.listFiles(userPrincipal);
     fileList.innerHTML = '';
     files.forEach(fileName => {
       const li = createFileListItem(fileName);
@@ -69,6 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const downloadButton = createButton('Download', () => downloadFile(fileName));
     const deleteButton = createButton('Delete', async () => {
+      await backend.deleteFile(fileName);
       await deleteFileLocally(fileName);
       updateFileList();
     });
@@ -89,9 +138,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function downloadFile(fileName) {
     try {
-      const file = await getFileLocally(fileName);
-      if (!file) throw new Error('File not found');
-      triggerDownload(file.name, file.type, file.content);
+      const fileInfo = await backend.getFileInfo(userPrincipal, fileName);
+      if (!fileInfo) throw new Error('File not found');
+      const content = new Uint8Array(fileInfo.content).buffer;
+      triggerDownload(fileName, fileInfo.contentType, content);
       updateStatus(`File ${fileName} downloaded successfully`, 'success');
     } catch (error) {
       updateStatus('Download failed: ' + error.message, 'error');
@@ -115,7 +165,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     request.onerror = event => console.error("IndexedDB error:", event.target.error);
     request.onsuccess = event => {
       db = event.target.result;
-      updateFileList();
     };
     request.onupgradeneeded = event => {
       db = event.target.result;
@@ -142,16 +191,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  async function getFileLocally(name) {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["files"], "readonly");
-      const store = transaction.objectStore("files");
-      const request = store.get(name);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-    });
-  }
-
   async function deleteFileLocally(name) {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(["files"], "readwrite");
@@ -161,16 +200,4 @@ document.addEventListener('DOMContentLoaded', async () => {
       request.onsuccess = () => resolve();
     });
   }
-
-  async function listFilesLocally() {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["files"], "readonly");
-      const store = transaction.objectStore("files");
-      const request = store.getAllKeys();
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-    });
-  }
-
-  updateFileList();
 });

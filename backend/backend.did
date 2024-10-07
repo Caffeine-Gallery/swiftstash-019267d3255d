@@ -5,7 +5,7 @@ type FileInfo =
  };
 service : {
   deleteFile: (text) -> ();
-  getFileInfo: (text) -> (opt FileInfo) query;
-  listFiles: () -> (vec text) query;
+  getFileInfo: (principal, text) -> (opt FileInfo) query;
+  listFiles: (principal) -> (vec text) query;
   uploadFile: (text, text, vec nat8) -> (text);
 }
