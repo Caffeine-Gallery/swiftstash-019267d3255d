@@ -212,11 +212,13 @@ function App() {
     };
 
     const login = async () => {
+        console.log("Login function called"); // Debug log
         try {
             const internetIdentityUrl = process.env.INTERNET_IDENTITY_URL || "https://identity.ic0.app";
             await authClient.login({
                 identityProvider: internetIdentityUrl,
                 onSuccess: async () => {
+                    console.log("Login successful"); // Debug log
                     setIsAuthenticated(true);
                     updateStatus('Login successful', 'success');
                     await updateFileList();
@@ -321,19 +323,85 @@ function App() {
 // Render function
 function render(component, container) {
     const { html, listeners } = component();
-    container.innerHTML = html;
+    
+    // Create a temporary container
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    // Update only the changed parts of the DOM
+    updateDOM(container, temp);
+
+    // Attach event listeners
     Object.entries(listeners).forEach(([selector, events]) => {
         const elements = container.querySelectorAll(selector);
         Object.entries(events).forEach(([event, handler]) => {
-            elements.forEach(element => element.addEventListener(event, handler));
+            elements.forEach(element => {
+                element.removeEventListener(event, handler); // Remove old listener
+                element.addEventListener(event, handler); // Add new listener
+            });
         });
     });
+}
+
+// Helper function to update DOM efficiently
+function updateDOM(currentNode, newNode) {
+    if (currentNode.nodeType === Node.TEXT_NODE) {
+        if (currentNode.textContent !== newNode.textContent) {
+            currentNode.textContent = newNode.textContent;
+        }
+        return;
+    }
+
+    if (currentNode.nodeType === Node.ELEMENT_NODE) {
+        // Update attributes
+        Array.from(newNode.attributes).forEach(attr => {
+            if (currentNode.getAttribute(attr.name) !== attr.value) {
+                currentNode.setAttribute(attr.name, attr.value);
+            }
+        });
+
+        // Remove old attributes
+        Array.from(currentNode.attributes).forEach(attr => {
+            if (!newNode.hasAttribute(attr.name)) {
+                currentNode.removeAttribute(attr.name);
+            }
+        });
+
+        // Update child nodes
+        const currentChildren = Array.from(currentNode.childNodes);
+        const newChildren = Array.from(newNode.childNodes);
+        const maxLength = Math.max(currentChildren.length, newChildren.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            if (!currentChildren[i]) {
+                currentNode.appendChild(newChildren[i].cloneNode(true));
+            } else if (!newChildren[i]) {
+                currentNode.removeChild(currentChildren[i]);
+            } else {
+                updateDOM(currentChildren[i], newChildren[i]);
+            }
+        }
+    }
 }
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
     const root = document.getElementById('root');
     render(App, root);
+
+    // Set up a simple state management system
+    const [getState, setState, subscribe] = useState({
+        isAuthenticated: false,
+        files: [],
+        status: { message: '', type: '' }
+    });
+
+    subscribe(() => {
+        render(App, root);
+    });
+
+    // Expose setState to window for debugging
+    window.setState = setState;
 });
 
 // Helper functions
