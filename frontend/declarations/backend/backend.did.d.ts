@@ -16,6 +16,7 @@ export interface _SERVICE {
     [string, string, bigint, bigint, bigint, Uint8Array | number[]],
     undefined
   >,
+  'verifyFileIntegrity' : ActorMethod<[string], boolean>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;
 export declare const init: (args: { IDL: typeof IDL }) => IDL.Type[];

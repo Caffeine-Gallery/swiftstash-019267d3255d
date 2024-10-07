@@ -25,6 +25,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'verifyFileIntegrity' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   });
 };
 export const init = ({ IDL }) => { return []; };

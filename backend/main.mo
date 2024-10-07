@@ -1,4 +1,6 @@
+import Bool "mo:base/Bool";
 import Hash "mo:base/Hash";
+import Int "mo:base/Int";
 import Nat8 "mo:base/Nat8";
 
 import Array "mo:base/Array";
@@ -103,6 +105,32 @@ actor {
 
   public query func listFiles() : async [Text] {
     Iter.toArray(fileInfos.keys())
+  };
+
+  public query func verifyFileIntegrity(name: Text) : async Bool {
+    switch (fileInfos.get(name), fileChunks.get(name)) {
+      case (?info, ?chunks) {
+        let actualChunkCount = chunks.size();
+        let expectedChunkCount = Nat64.toNat(info.chunkCount);
+        let actualSize = Array.foldLeft<FileChunk, Nat64>(chunks, 0, func (acc, chunk) { acc + Nat64.fromNat(chunk.data.size()) });
+        
+        if (actualChunkCount != expectedChunkCount) {
+          Debug.print("Chunk count mismatch for file " # name # ". Expected: " # Nat.toText(expectedChunkCount) # ", Actual: " # Nat.toText(actualChunkCount));
+          return false;
+        };
+
+        if (actualSize != info.size) {
+          Debug.print("File size mismatch for file " # name # ". Expected: " # Nat64.toText(info.size) # ", Actual: " # Nat64.toText(actualSize));
+          return false;
+        };
+
+        true
+      };
+      case _ {
+        Debug.print("File not found: " # name);
+        false
+      };
+    }
   };
 
   system func preupgrade() {
