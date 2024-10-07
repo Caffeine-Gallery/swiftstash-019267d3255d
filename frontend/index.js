@@ -176,50 +176,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('File integrity check failed before download');
       }
 
-      const totalChunks = Number(fileInfo.chunkCount);
-      const chunks = [];
-      let totalSize = 0;
-      let validChunksDownloaded = 0;
-
-      for (let i = 0; i < totalChunks; i++) {
-        let chunkData = null;
-        for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
-          try {
-            chunkData = await Promise.race([
-              backend.getFileChunk(fileName, BigInt(i)),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Chunk download timeout')), CHUNK_DOWNLOAD_TIMEOUT))
-            ]);
-            if (chunkData) {
-              const chunk = new Uint8Array(chunkData);
-              if (chunk.length > 0) {
-                chunks.push(chunk);
-                totalSize += chunk.length;
-                validChunksDownloaded++;
-                break;
-              } else {
-                console.warn(`Empty chunk received for index ${i}, retrying...`);
-              }
-            }
-          } catch (error) {
-            console.warn(`Attempt ${attempt + 1} failed for chunk ${i}:`, error.message);
-            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt))); // Exponential backoff
-          }
-        }
-        if (!chunkData) {
-          console.error(`Failed to download chunk ${i} after ${MAX_RETRY_ATTEMPTS} attempts`);
-        }
-        updateProgressBar((i + 1) / totalChunks * 100);
+      const content = await backend.getFileContent(fileName);
+      if (!content) {
+        throw new Error('Failed to retrieve file content');
       }
 
-      if (validChunksDownloaded === 0) {
-        throw new Error('No valid chunks were downloaded');
-      }
-
-      if (chunks.length !== totalChunks) {
-        console.warn(`Expected ${totalChunks} chunks, but received ${chunks.length}`);
-      }
-
-      const blob = new Blob(chunks, { type: fileInfo.contentType || 'application/octet-stream' });
+      const blob = new Blob([new Uint8Array(content)], { type: fileInfo.contentType || 'application/octet-stream' });
       if (blob.size === 0) {
         throw new Error('Created blob is empty');
       }
@@ -237,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      uploadStatus.textContent = `Download completed (${validChunksDownloaded}/${totalChunks} chunks)`;
+      uploadStatus.textContent = `Download completed`;
     } catch (error) {
       console.error('Download failed:', error);
       uploadStatus.textContent = 'Download failed: ' + error.message;
