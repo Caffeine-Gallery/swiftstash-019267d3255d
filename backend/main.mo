@@ -21,8 +21,8 @@ actor {
   var files = HashMap.HashMap<Text, FileInfo>(0, Text.equal, Text.hash);
 
   public func uploadFile(name: Text, contentType: Text, content: [Nat8]) : async Text {
-    if (content.size() == 0) {
-      return "Error: Cannot upload empty file";
+    if (content.size() <= 1) {
+      return "Error: File must be larger than 1 byte";
     };
     files.put(name, { name; contentType; content });
     Debug.print("File uploaded: " # name # ", size: " # Nat.toText(content.size()) # " bytes");
@@ -50,8 +50,13 @@ actor {
   public query func getFileContent(name: Text) : async ?[Nat8] {
     switch (files.get(name)) {
       case (?file) { 
-        Debug.print("Retrieving file: " # name # ", size: " # Nat.toText(file.content.size()) # " bytes");
-        ?file.content 
+        if (file.content.size() <= 1) {
+          Debug.print("File too small to download: " # name);
+          null
+        } else {
+          Debug.print("Retrieving file: " # name # ", size: " # Nat.toText(file.content.size()) # " bytes");
+          ?file.content 
+        }
       };
       case (null) { 
         Debug.print("File not found: " # name);

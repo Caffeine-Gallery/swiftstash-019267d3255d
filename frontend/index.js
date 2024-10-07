@@ -14,6 +14,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const file = fileInput.files[0];
+    if (file.size <= 1) {
+      status.textContent = 'Error: File must be larger than 1 byte';
+      return;
+    }
+
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -59,14 +64,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!fileInfo) throw new Error('File not found');
 
       const content = await backend.getFileContent(fileName);
-      if (!content || content.length === 0) throw new Error('Failed to retrieve file content or content is empty');
+      if (!content) throw new Error('File is too small or not available for download');
+      if (content.length <= 1) throw new Error('File must be larger than 1 byte to download');
 
       console.log(`Downloading file: ${fileName}, size: ${content.length} bytes`);
 
       const uint8Array = new Uint8Array(content);
       const blob = new Blob([uint8Array], { type: fileInfo.contentType });
       
-      if (blob.size === 0) throw new Error('Created blob is empty');
+      if (blob.size <= 1) throw new Error('File must be larger than 1 byte to download');
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
