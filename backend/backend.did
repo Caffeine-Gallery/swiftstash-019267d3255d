@@ -10,5 +10,4 @@ service : {
   getFileInfo: (text) -> (opt FileInfo) query;
   listFiles: () -> (vec text) query;
   uploadFileChunk: (text, text, nat64, nat64, nat64, vec nat8) -> ();
-  verifyFileIntegrity: (text) -> (bool) query;
 }

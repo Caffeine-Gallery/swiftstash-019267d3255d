@@ -88,16 +88,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       fileList.innerHTML = '';
       for (const fileName of files) {
         const li = document.createElement('li');
-        const fileLink = document.createElement('a');
-        fileLink.href = `#/file/${encodeURIComponent(fileName)}`;
-        fileLink.textContent = fileName;
-        fileLink.target = '_blank';
-        li.appendChild(fileLink);
+        li.textContent = fileName;
 
-        const copyLinkButton = document.createElement('button');
-        copyLinkButton.textContent = 'Copy Link';
-        copyLinkButton.addEventListener('click', () => copyLinkToClipboard(fileLink.href));
-        li.appendChild(copyLinkButton);
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = 'Download';
+        downloadButton.addEventListener('click', () => downloadFile(fileName));
+        li.appendChild(downloadButton);
 
         fileList.appendChild(li);
       }
@@ -106,29 +102,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function copyLinkToClipboard(link) {
-    navigator.clipboard.writeText(link).then(() => {
-      alert('Link copied to clipboard!');
-    }).catch(err => {
-      console.error('Failed to copy link: ', err);
-    });
-  }
-
-  async function viewFile(fileName) {
+  async function downloadFile(fileName) {
     try {
       const fileInfo = await backend.getFileInfo(fileName);
-      console.log('File info received:', fileInfo);
       if (fileInfo) {
         if (fileInfo.size === BigInt(0)) {
           throw new Error('File size is 0 bytes');
         }
-        const fileIntegrity = await backend.verifyFileIntegrity(fileName);
-        if (!fileIntegrity) {
-          throw new Error('File integrity check failed');
-        }
         const fileData = await downloadFileInChunks(fileInfo);
         if (fileData) {
-          displayFileContent(fileInfo, fileData);
+          const url = URL.createObjectURL(fileData);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
         } else {
           throw new Error('Failed to download file data');
         }
@@ -136,8 +126,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('File not found or invalid file data');
       }
     } catch (error) {
-      console.error('Failed to view file:', error);
-      alert('Failed to view file: ' + error.message);
+      console.error('Failed to download file:', error);
+      alert('Failed to download file: ' + error.message);
     }
   }
 
@@ -221,86 +211,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }, 1000);
     } else {
       progressBarContainer.style.display = 'block';
-    }
-  }
-
-  function displayFileContent(fileInfo, fileData) {
-    console.log('Displaying file content. File info:', fileInfo, 'Blob size:', fileData.size);
-    const url = URL.createObjectURL(fileData);
-
-    const contentType = fileInfo.contentType || 'application/octet-stream';
-
-    if (contentType.startsWith('image/')) {
-      const img = document.createElement('img');
-      img.src = url;
-      img.onerror = (e) => {
-        console.error('Failed to load image:', e);
-        alert('Failed to load image. Please check the console for more details.');
-      };
-      img.onload = () => console.log('Image loaded successfully');
-      displayInModal(img, fileInfo, fileData.size);
-    } else if (contentType.startsWith('text/')) {
-      fetch(url)
-        .then(response => response.text())
-        .then(text => {
-          const pre = document.createElement('pre');
-          pre.textContent = text;
-          displayInModal(pre, fileInfo, fileData.size);
-        })
-        .catch(error => {
-          console.error('Failed to load text file:', error);
-          alert('Failed to load text file. Please check the console for more details.');
-        });
-    } else {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileInfo.name;
-      link.textContent = `Download ${fileInfo.name} (${formatFileSize(fileData.size)})`;
-      displayInModal(link, fileInfo, fileData.size);
-    }
-  }
-
-  function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' bytes';
-    else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
-    else return (bytes / 1048576).toFixed(2) + ' MB';
-  }
-
-  function displayInModal(content, fileInfo, actualSize) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    const modalContent = document.createElement('div');
-    modalContent.className = 'modal-content';
-    const closeBtn = document.createElement('span');
-    closeBtn.className = 'close';
-    closeBtn.textContent = '×';
-    closeBtn.onclick = () => document.body.removeChild(modal);
-
-    const fileInfoText = document.createElement('p');
-    fileInfoText.textContent = `File: ${fileInfo.name || 'Unknown'} | Type: ${fileInfo.contentType || 'Unknown'} | Size: ${formatFileSize(actualSize)} (Stored size: ${formatFileSize(Number(fileInfo.size) || 0)})`;
-    
-    modalContent.appendChild(closeBtn);
-    modalContent.appendChild(fileInfoText);
-    modalContent.appendChild(content);
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-
-    window.onclick = (event) => {
-      if (event.target === modal) {
-        document.body.removeChild(modal);
-      }
-    };
-  }
-
-  // Handle file viewing based on URL hash
-  window.addEventListener('hashchange', handleHashChange);
-  handleHashChange();
-
-  function handleHashChange() {
-    const hash = window.location.hash;
-    if (hash.startsWith('#/file/')) {
-      const fileName = decodeURIComponent(hash.slice(7));
-      viewFile(fileName);
     }
   }
 
