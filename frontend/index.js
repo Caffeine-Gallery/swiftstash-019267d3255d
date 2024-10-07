@@ -88,7 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fileData = file[0];
         console.log('File data received, size:', fileData.data.length);
 
-        // Use a worker to handle large file processing
         const worker = new Worker(new URL('./fileWorker.js', import.meta.url), { type: 'module' });
         
         worker.onmessage = (event) => {
@@ -99,6 +98,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert('Failed to process file: ' + data);
           } else if (type === 'result') {
             displayFileContent(fileData.content_type, data);
+          } else if (type === 'progress') {
+            updateProgressBar(data);
           }
         };
 
@@ -110,6 +111,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Failed to view file:', error);
       alert('Failed to view file: ' + error.message);
+    }
+  }
+
+  function updateProgressBar(progress) {
+    progressBar.style.width = `${progress}%`;
+    if (progress === 100) {
+      setTimeout(() => {
+        progressBarContainer.style.display = 'none';
+      }, 1000);
+    } else {
+      progressBarContainer.style.display = 'block';
     }
   }
 
