@@ -113,13 +113,62 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         };
         
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = 'Download';
+        downloadButton.onclick = () => downloadFile(fileName);
+        
         li.appendChild(deleteButton);
+        li.appendChild(downloadButton);
         fileList.appendChild(li);
       }
     } catch (error) {
       console.error('Failed to update file list:', error);
       uploadStatus.textContent = 'Failed to update file list: ' + error.message;
       uploadStatus.classList.add('error');
+    }
+  }
+
+  async function downloadFile(fileName) {
+    try {
+      progressBarContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      uploadStatus.textContent = 'Downloading...';
+      uploadStatus.classList.remove('error');
+
+      const fileInfo = await backend.getFileInfo(fileName);
+      if (!fileInfo) {
+        throw new Error('File not found');
+      }
+
+      const totalChunks = Number(fileInfo.chunkCount);
+      const chunks = [];
+
+      for (let i = 0; i < totalChunks; i++) {
+        const chunkData = await backend.getFileChunk(fileName, BigInt(i));
+        if (!chunkData) {
+          throw new Error(`Failed to download chunk ${i}`);
+        }
+        chunks.push(new Uint8Array(chunkData));
+        updateProgressBar((i + 1) / totalChunks * 100);
+      }
+
+      const blob = new Blob(chunks, { type: fileInfo.contentType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      uploadStatus.textContent = 'Download completed';
+    } catch (error) {
+      console.error('Download failed:', error);
+      uploadStatus.textContent = 'Download failed: ' + error.message;
+      uploadStatus.classList.add('error');
+    } finally {
+      progressBarContainer.style.display = 'none';
     }
   }
 
