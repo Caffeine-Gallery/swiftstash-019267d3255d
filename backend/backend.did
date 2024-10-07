@@ -1,12 +1,12 @@
 type FileInfo = 
  record {
-   content: vec nat8;
+   content: blob;
    contentType: text;
    name: text;
  };
 service : {
   deleteFile: (text) -> ();
-  getFileContent: (text) -> (opt vec nat8) query;
+  getFileContent: (text) -> (opt blob) query;
   getFileInfo: (text) -> (opt FileInfo) query;
   listFiles: () -> (vec text) query;
   uploadFile: (text, text, vec nat8) -> (text);

@@ -1,4 +1,5 @@
 import { backend } from 'declarations/backend';
+import { Principal } from "@dfinity/principal";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const fileInput = document.getElementById('fileInput');
@@ -17,8 +18,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const content = new Uint8Array(e.target.result);
-        await backend.uploadFile(file.name, file.type, Array.from(content));
-        status.textContent = 'File uploaded successfully';
+        console.log(`Uploading file: ${file.name}, size: ${content.length} bytes`);
+        const result = await backend.uploadFile(file.name, file.type, Array.from(content));
+        status.textContent = result;
         updateFileList();
       };
       reader.readAsArrayBuffer(file);
@@ -59,13 +61,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       const content = await backend.getFileContent(fileName);
       if (!content) throw new Error('Failed to retrieve file content');
 
-      const blob = new Blob([new Uint8Array(content)], { type: fileInfo.contentType });
+      console.log(`Downloading file: ${fileName}, size: ${content.length} bytes`);
+
+      const uint8Array = new Uint8Array(content);
+      const blob = new Blob([uint8Array], { type: fileInfo.contentType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      status.textContent = `File ${fileName} downloaded successfully`;
     } catch (error) {
       status.textContent = 'Download failed: ' + error.message;
     }
