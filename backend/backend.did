@@ -7,5 +7,5 @@ type File =
 service : {
   getFile: (text) -> (opt File) query;
   listFiles: () -> (vec text) query;
-  uploadFileChunk: (text, text, blob, nat, nat) -> (nat);
+  uploadFile: (text, text, blob) -> (text);
 }

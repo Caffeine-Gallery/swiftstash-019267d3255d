@@ -7,9 +7,9 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     'getFile' : IDL.Func([IDL.Text], [IDL.Opt(File)], ['query']),
     'listFiles' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
-    'uploadFileChunk' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8), IDL.Nat, IDL.Nat],
-        [IDL.Nat],
+    'uploadFile' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Vec(IDL.Nat8)],
+        [IDL.Text],
         [],
       ),
   });
