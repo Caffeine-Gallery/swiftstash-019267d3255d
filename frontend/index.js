@@ -135,50 +135,65 @@ function FileUpload({ onUpload, updateStatus }) {
         }
     };
 
-    return `
-        <section class="upload-section">
-            <h2>Upload File</h2>
-            <div class="file-upload-container">
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput" class="file-input" onchange="handleFileChange(event)">
-                    <label for="fileInput" class="file-input-label">${getFile() ? getFile().name : 'Choose a file'}</label>
+    return {
+        html: `
+            <section class="upload-section">
+                <h2>Upload File</h2>
+                <div class="file-upload-container">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" class="file-input">
+                        <label for="fileInput" class="file-input-label">${getFile() ? getFile().name : 'Choose a file'}</label>
+                    </div>
+                    <button id="uploadButton" class="btn">Upload</button>
                 </div>
-                <button class="btn" onclick="handleUpload()">Upload</button>
-            </div>
-            ${getProgress() > 0 ? `
-                <div class="progress-bar-container">
-                    <div class="progress-bar" style="width: ${getProgress()}%"></div>
-                </div>
-            ` : ''}
-        </section>
-    `;
+                ${getProgress() > 0 ? `
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: ${getProgress()}%"></div>
+                    </div>
+                ` : ''}
+            </section>
+        `,
+        listeners: {
+            '#fileInput': { change: handleFileChange },
+            '#uploadButton': { click: handleUpload }
+        }
+    };
 }
 
 function FileList({ files, onDownload, onDelete }) {
-    return `
-        <section class="file-list-section">
-            <h2>File List</h2>
-            <ul class="file-list">
-                ${files.map(file => `
-                    <li>
-                        ${file.name}
-                        <div class="button-container">
-                            <button class="btn btn-small" onclick="onDownload('${file.name}')">Download</button>
-                            <button class="btn btn-small" onclick="onDelete('${file.name}')">Delete</button>
-                        </div>
-                    </li>
-                `).join('')}
-            </ul>
-        </section>
-    `;
+    return {
+        html: `
+            <section class="file-list-section">
+                <h2>File List</h2>
+                <ul class="file-list">
+                    ${files.map((file, index) => `
+                        <li>
+                            ${file.name}
+                            <div class="button-container">
+                                <button class="btn btn-small download-btn" data-index="${index}">Download</button>
+                                <button class="btn btn-small delete-btn" data-index="${index}">Delete</button>
+                            </div>
+                        </li>
+                    `).join('')}
+                </ul>
+            </section>
+        `,
+        listeners: {
+            '.download-btn': { click: (e) => onDownload(files[e.target.dataset.index].name) },
+            '.delete-btn': { click: (e) => onDelete(files[e.target.dataset.index].name) }
+        }
+    };
 }
 
 function StatusMessage({ message, type }) {
-    return message ? `
-        <footer>
-            <p class="status ${type}">${message}</p>
-        </footer>
-    ` : '';
+    return {
+        html: message ? `
+            <footer>
+                <p class="status ${type}">${message}</p>
+            </footer>
+        ` : '',
+        listeners: {}
+    };
 }
 
 function App() {
@@ -242,31 +257,51 @@ function App() {
         initIndexedDB();
     }, []);
 
-    return `
-        <div class="container">
-            <header>
-                <h1>FileVault</h1>
-            </header>
-            <nav class="button-container">
-                ${getIsAuthenticated() 
-                    ? `<button class="btn" onclick="logout()">Logout</button>`
-                    : `<button class="btn" onclick="login()">Login</button>`
-                }
-            </nav>
-            ${getIsAuthenticated() ? `
-                <main>
-                    ${FileUpload({ onUpload: updateFileList, updateStatus })}
-                    ${FileList({ files: getFiles(), onDownload: downloadFile, onDelete: deleteFile })}
-                </main>
-            ` : ''}
-            ${StatusMessage(getStatus())}
-        </div>
-    `;
+    const fileUploadComponent = FileUpload({ onUpload: updateFileList, updateStatus });
+    const fileListComponent = FileList({ files: getFiles(), onDownload: downloadFile, onDelete: deleteFile });
+    const statusMessageComponent = StatusMessage(getStatus());
+
+    return {
+        html: `
+            <div class="container">
+                <header>
+                    <h1>FileVault</h1>
+                </header>
+                <nav class="button-container">
+                    ${getIsAuthenticated() 
+                        ? `<button id="logoutButton" class="btn">Logout</button>`
+                        : `<button id="loginButton" class="btn">Login</button>`
+                    }
+                </nav>
+                ${getIsAuthenticated() ? `
+                    <main>
+                        ${fileUploadComponent.html}
+                        ${fileListComponent.html}
+                    </main>
+                ` : ''}
+                ${statusMessageComponent.html}
+            </div>
+        `,
+        listeners: {
+            '#loginButton': { click: login },
+            '#logoutButton': { click: logout },
+            ...fileUploadComponent.listeners,
+            ...fileListComponent.listeners,
+            ...statusMessageComponent.listeners
+        }
+    };
 }
 
 // Render function
 function render(component, container) {
-    container.innerHTML = component();
+    const { html, listeners } = component();
+    container.innerHTML = html;
+    Object.entries(listeners).forEach(([selector, events]) => {
+        const elements = container.querySelectorAll(selector);
+        Object.entries(events).forEach(([event, handler]) => {
+            elements.forEach(element => element.addEventListener(event, handler));
+        });
+    });
 }
 
 // Initialize the app
