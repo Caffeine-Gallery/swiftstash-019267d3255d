@@ -2,141 +2,80 @@ import { backend } from 'declarations/backend';
 import { AuthClient } from "@dfinity/auth-client";
 import { Principal } from "@dfinity/principal";
 
-let db;
-let authClient;
-let userPrincipal;
+const e = React.createElement;
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const fileInput = document.getElementById('fileInput');
-  const uploadButton = document.getElementById('uploadButton');
-  const fileList = document.getElementById('fileList');
-  const status = document.getElementById('status');
-  const progressBar = document.getElementById('progressBar');
-  const progressBarContainer = document.getElementById('progressBarContainer');
-  const loginButton = document.getElementById('loginButton');
-  const logoutButton = document.getElementById('logoutButton');
-  const mainContent = document.getElementById('mainContent');
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [files, setFiles] = React.useState([]);
+  const [status, setStatus] = React.useState({ message: '', type: '' });
+  const [selectedFile, setSelectedFile] = React.useState(null);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
 
-  await initIndexedDB();
-  await initAuth();
+  const authClient = React.useRef(null);
+  const userPrincipal = React.useRef(null);
 
-  loginButton.onclick = login;
-  logoutButton.onclick = logout;
-  uploadButton.addEventListener('click', handleUpload);
-  fileInput.addEventListener('change', updateFileInputLabel);
+  React.useEffect(() => {
+    initAuth();
+  }, []);
 
   async function initAuth() {
-    authClient = await AuthClient.create();
-    if (await authClient.isAuthenticated()) {
-      userPrincipal = await authClient.getIdentity().getPrincipal();
-      showAuthenticatedUI();
+    authClient.current = await AuthClient.create();
+    if (await authClient.current.isAuthenticated()) {
+      userPrincipal.current = await authClient.current.getIdentity().getPrincipal();
+      setIsAuthenticated(true);
+      updateFileList();
     }
   }
 
   async function login() {
-    await authClient.login({
+    await authClient.current.login({
       identityProvider: "https://identity.ic0.app/#authorize",
       onSuccess: () => {
-        userPrincipal = authClient.getIdentity().getPrincipal();
-        showAuthenticatedUI();
+        userPrincipal.current = authClient.current.getIdentity().getPrincipal();
+        setIsAuthenticated(true);
+        updateFileList();
       },
     });
   }
 
   async function logout() {
-    await authClient.logout();
-    showUnauthenticatedUI();
-  }
-
-  function showAuthenticatedUI() {
-    loginButton.style.display = 'none';
-    logoutButton.style.display = 'inline-block';
-    mainContent.style.display = 'block';
-    mainContent.classList.add('fade-in');
-    updateFileList();
-  }
-
-  function showUnauthenticatedUI() {
-    loginButton.style.display = 'inline-block';
-    logoutButton.style.display = 'none';
-    mainContent.style.display = 'none';
-    userPrincipal = null;
+    await authClient.current.logout();
+    setIsAuthenticated(false);
+    userPrincipal.current = null;
   }
 
   async function handleUpload() {
-    if (!fileInput.files.length) {
+    if (!selectedFile) {
       updateStatus('Please select a file', 'error');
       return;
     }
 
-    const file = fileInput.files[0];
-    if (file.size <= 1) {
+    if (selectedFile.size <= 1) {
       updateStatus('Error: File must be larger than 1 byte', 'error');
       return;
     }
 
     try {
-      progressBarContainer.style.display = 'block';
-      const content = await readFileAsArrayBuffer(file);
-      await saveFileLocally(file.name, file.type, content);
+      setUploadProgress(0);
+      const content = await readFileAsArrayBuffer(selectedFile);
+      await saveFileLocally(selectedFile.name, selectedFile.type, content);
       updateStatus('File uploaded successfully', 'success');
       await updateFileList();
     } catch (error) {
       updateStatus('Upload failed: ' + error.message, 'error');
     } finally {
-      progressBarContainer.style.display = 'none';
-      progressBar.style.width = '0%';
+      setUploadProgress(0);
     }
   }
 
-  function updateFileInputLabel() {
-    const label = document.querySelector('.file-input-label');
-    label.textContent = fileInput.files.length > 0 ? fileInput.files[0].name : 'Choose a file';
-  }
-
   function updateStatus(message, type) {
-    status.textContent = message;
-    status.className = `status ${type} fade-in`;
-    setTimeout(() => {
-      status.style.opacity = '0';
-    }, 3000);
+    setStatus({ message, type });
+    setTimeout(() => setStatus({ message: '', type: '' }), 3000);
   }
 
   async function updateFileList() {
     const files = await getAllFiles();
-    fileList.innerHTML = '';
-    files.forEach(file => {
-      const li = createFileListItem(file.name);
-      li.classList.add('fade-in');
-      fileList.appendChild(li);
-    });
-  }
-
-  function createFileListItem(fileName) {
-    const li = document.createElement('li');
-    li.textContent = fileName;
-    
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'button-container';
-    
-    const downloadButton = createButton('Download', () => downloadFile(fileName));
-    const deleteButton = createButton('Delete', async () => {
-      await deleteFileLocally(fileName);
-      await updateFileList();
-    });
-    
-    buttonContainer.appendChild(downloadButton);
-    buttonContainer.appendChild(deleteButton);
-    li.appendChild(buttonContainer);
-    return li;
-  }
-
-  function createButton(text, onClick) {
-    const button = document.createElement('button');
-    button.textContent = text;
-    button.className = 'btn btn-small';
-    button.onclick = onClick;
-    return button;
+    setFiles(files);
   }
 
   async function downloadFile(fileName) {
@@ -162,67 +101,137 @@ document.addEventListener('DOMContentLoaded', async () => {
     URL.revokeObjectURL(url);
   }
 
-  async function initIndexedDB() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open('FileStorage', 1);
-      request.onerror = event => reject("IndexedDB error: " + event.target.error);
-      request.onsuccess = event => {
-        db = event.target.result;
-        resolve();
-      };
-      request.onupgradeneeded = event => {
-        db = event.target.result;
-        db.createObjectStore("files", { keyPath: "name" });
-      };
-    });
+  async function deleteFile(fileName) {
+    await deleteFileLocally(fileName);
+    await updateFileList();
   }
 
-  function readFileAsArrayBuffer(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.onerror = e => reject(e.target.error);
-      reader.readAsArrayBuffer(file);
-    });
+  function FileUpload() {
+    return e('section', { className: 'upload-section' },
+      e('h2', null, 'Upload File'),
+      e('div', { className: 'file-upload-container' },
+        e('div', { className: 'file-input-wrapper' },
+          e('input', {
+            type: 'file',
+            id: 'fileInput',
+            className: 'file-input',
+            onChange: (event) => setSelectedFile(event.target.files[0])
+          }),
+          e('label', { htmlFor: 'fileInput', className: 'file-input-label' },
+            selectedFile ? selectedFile.name : 'Choose a file'
+          )
+        ),
+        e('button', { className: 'btn', onClick: handleUpload }, 'Upload')
+      ),
+      uploadProgress > 0 && e('div', { className: 'progress-bar-container' },
+        e('div', { className: 'progress-bar', style: { width: `${uploadProgress}%` } })
+      )
+    );
   }
 
-  async function saveFileLocally(name, type, content) {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["files"], "readwrite");
-      const store = transaction.objectStore("files");
-      const request = store.put({ name, type, content });
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
+  function FileList() {
+    return e('section', { className: 'file-list-section' },
+      e('h2', null, 'File List'),
+      e('ul', { className: 'file-list' },
+        files.map(file => 
+          e('li', { key: file.name },
+            file.name,
+            e('div', { className: 'button-container' },
+              e('button', { className: 'btn btn-small', onClick: () => downloadFile(file.name) }, 'Download'),
+              e('button', { className: 'btn btn-small', onClick: () => deleteFile(file.name) }, 'Delete')
+            )
+          )
+        )
+      )
+    );
   }
 
-  async function getFileLocally(name) {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["files"], "readonly");
-      const store = transaction.objectStore("files");
-      const request = store.get(name);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-    });
-  }
+  return e('div', { className: 'container' },
+    e('header', null, e('h1', null, 'FileVault')),
+    e('nav', { className: 'button-container' },
+      isAuthenticated
+        ? e('button', { className: 'btn', onClick: logout }, 'Logout')
+        : e('button', { className: 'btn', onClick: login }, 'Login')
+    ),
+    isAuthenticated && e('main', null,
+      e(FileUpload),
+      e(FileList)
+    ),
+    status.message && e('footer', null,
+      e('p', { className: `status ${status.type}` }, status.message)
+    )
+  );
+}
 
-  async function deleteFileLocally(name) {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["files"], "readwrite");
-      const store = transaction.objectStore("files");
-      const request = store.delete(name);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
-  }
+// IndexedDB operations
+let db;
 
-  async function getAllFiles() {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["files"], "readonly");
-      const store = transaction.objectStore("files");
-      const request = store.getAll();
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-    });
-  }
+async function initIndexedDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('FileStorage', 1);
+    request.onerror = event => reject("IndexedDB error: " + event.target.error);
+    request.onsuccess = event => {
+      db = event.target.result;
+      resolve();
+    };
+    request.onupgradeneeded = event => {
+      db = event.target.result;
+      db.createObjectStore("files", { keyPath: "name" });
+    };
+  });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = e => reject(e.target.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function saveFileLocally(name, type, content) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["files"], "readwrite");
+    const store = transaction.objectStore("files");
+    const request = store.put({ name, type, content });
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
+async function getFileLocally(name) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["files"], "readonly");
+    const store = transaction.objectStore("files");
+    const request = store.get(name);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function deleteFileLocally(name) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["files"], "readwrite");
+    const store = transaction.objectStore("files");
+    const request = store.delete(name);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
+async function getAllFiles() {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["files"], "readonly");
+    const store = transaction.objectStore("files");
+    const request = store.getAll();
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+// Initialize IndexedDB and render the app
+initIndexedDB().then(() => {
+  const root = document.getElementById('root');
+  ReactDOM.render(e(App), root);
 });
